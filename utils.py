@@ -331,6 +331,41 @@ def parse_baseline_results_folder(root='./runs/baseline_results'):
         pickle.dump(df, f)
 
 
+
+## New code
+def _rename_state_dict(state_dict):
+    old_to_new = {
+        'tconv1': 'main.0.0',
+        'bn1': 'main.0.1',
+        'tconv2': 'main.1.0',
+        'bn2': 'main.1.1',
+        'tconv3': 'main.2.0',
+        'bn3': 'main.2.1',
+        'tconv4': 'main.3.0',
+        'bn4': 'main.3.1',
+        'tconv5': 'main.4.0'
+    }
+    
+    # rename layers
+    for key in list(state_dict.keys()):
+        layer = key.split('.')[0]
+        rest = key.split('.')[1]
+        new_key = old_to_new[layer] + '.' + rest
+        state_dict[new_key] = state_dict[key]
+        del state_dict[key]
+      
+    return state_dict
+
+
+def modify_state_dict(state_dict):
+  for i in range(4):
+    del state_dict[f'bn{i+1}.num_batches_tracked']
+  state_dict = _rename_state_dict(state_dict)
+  return state_dict
+
+##
+
+
 if __name__ == '__main__':
     parse_results_folder('./final_runs/results')
     parse_baseline_results_folder('./final_runs/baseline_results')
