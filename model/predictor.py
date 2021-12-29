@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 class PredictorDCGAN(nn.Module):
-    def __init__(self, nc, ndf):
+    def __init__(self, nc = 3, ndf = 64):
         super(PredictorDCGAN, self).__init__()
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64

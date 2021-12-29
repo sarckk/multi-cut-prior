@@ -19,7 +19,7 @@ from recover import recover, recover_dct
 from settings import baseline_settings, forward_models, recovery_settings
 from utils import (dict_to_str, get_baseline_results_folder, get_images_folder,
                    get_results_folder, load_target_image, load_trained_net,
-                   psnr, modify_state_dict)
+                   psnr, load_pretrained_dcgan_gen)
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -130,16 +130,8 @@ def gan_images(args):
             gen = BigGanSkip().to(DEVICE)
             img_size = 512
         elif args.model.startswith('dcgan'):
-            if 'untrained' not in args.model:
-                state_dict = torch.load('./trained_model/dcgan.pth', map_location=DEVICE)
-                params = state_dict['params']
-                generator_state = modify_state_dict(state_dict['generator'])
-                # t = torch.load(
-                #     ('./dcgan_checkpoints/netG.epoch_24.n_cuts_0.bs_64'
-                #      '.b1_0.5.lr_0.0002.pt'))
-
-            gen = dcgan_generator(params)
-            gen.load_state_dict(generator_state)
+            state_dict = torch.load('./trained_model/dcgan.pth', map_location=DEVICE)
+            gen = load_pretrained_dcgan_gen(state_dict)
             gen = gen.eval().to(DEVICE)
             img_size = 64
 

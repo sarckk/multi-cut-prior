@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from PIL import Image
 from scipy.stats import truncnorm
 from torchvision import transforms
-
+from model.dcgan import Generator as GeneratorDCGAN, Discriminator as DiscriminatorDCGAN
 
 def print_torchvec(x):
     return ','.join([f'{i:0.3f}' for i in x.tolist()])
@@ -333,35 +333,62 @@ def parse_baseline_results_folder(root='./runs/baseline_results'):
 
 
 ## New code
-def _rename_state_dict(state_dict):
-    old_to_new = {
-        'tconv1': 'main.0.0',
-        'bn1': 'main.0.1',
-        'tconv2': 'main.1.0',
-        'bn2': 'main.1.1',
-        'tconv3': 'main.2.0',
-        'bn3': 'main.2.1',
-        'tconv4': 'main.3.0',
-        'bn4': 'main.3.1',
-        'tconv5': 'main.4.0'
-    }
-    
+def _rename_state_dict(name_mapping, state_dict):
     # rename layers
     for key in list(state_dict.keys()):
         layer = key.split('.')[0]
         rest = key.split('.')[1]
-        new_key = old_to_new[layer] + '.' + rest
+        new_key = name_mapping[layer] + '.' + rest
         state_dict[new_key] = state_dict[key]
         del state_dict[key]
       
     return state_dict
 
 
-def modify_state_dict(state_dict):
+def _load_state_dcgan(state_dict, model, name_mapping, skip_bn1: bool = False):
   for i in range(4):
+    if i == 0 and skip_bn1:
+      continue
     del state_dict[f'bn{i+1}.num_batches_tracked']
-  state_dict = _rename_state_dict(state_dict)
-  return state_dict
+
+  new_state_dict = _rename_state_dict(name_mapping, state_dict)
+  model.load_state_dict(state_dict)
+
+
+def load_pretrained_dcgan_gen(state_dict):
+  params = state_dict['params']
+  gen = GeneratorDCGAN(params['nz'], params['ngf'], params['nc'])
+  old_to_new = {
+      'tconv1': 'main.0.0',
+      'bn1': 'main.0.1',
+      'tconv2': 'main.1.0',
+      'bn2': 'main.1.1',
+      'tconv3': 'main.2.0',
+      'bn3': 'main.2.1',
+      'tconv4': 'main.3.0',
+      'bn4': 'main.3.1',
+      'tconv5': 'main.4.0'
+  }
+  _load_state_dcgan(state_dict['generator'], gen, old_to_new)
+  return gen
+
+
+def load_pretrained_dcgan_disc(state_dict):
+  params = state_dict['params']
+  disc = DiscriminatorDCGAN(params['nc'], params['ndf'])
+  old_to_new = {
+      'conv1': 'main.0',
+      'conv2': 'main.2',
+      'bn2': 'main.3',
+      'conv3': 'main.5',
+      'bn3': 'main.6',
+      'conv4': 'main.8',
+      'bn4': 'main.9',
+      'conv5': 'main.11',
+  }
+  _load_state_dcgan(state_dict['discriminator'], disc, old_to_new, True)
+  return disc
+
 
 ##
 

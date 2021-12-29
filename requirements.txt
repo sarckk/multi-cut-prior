@@ -10,3 +10,5 @@ torch
 torchvision
 tqdm
 seaborn
+pytorch_lightning
+wandb
