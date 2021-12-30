@@ -23,6 +23,7 @@ DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 def _recover(x,
              gen,
+             z_predictor,
              optimizer_type,
              n_cuts,
              forward_model,
@@ -39,6 +40,7 @@ def _recover(x,
     Args:
         x - input image, torch tensor (C x H x W)
         gen - generator, already loaded with checkpoint weights
+        z_predictor - Network for predicting z 
         forward_model - corrupts the image
         n_steps - number of optimization steps during recovery
         run_name - use None for no logging
@@ -88,12 +90,20 @@ def _recover(x,
             z2 = None
 
     else:
-        z1 = torch.nn.Parameter(
-            get_z_vector((batch_size, *z1_dim),
-                         mode=mode,
-                         limit=limit,
-                         device=x.device))
-        # print('z1: ', z1.min(), z1.max())
+        if z_predictor is None:
+          print("==> z predictor not found...")
+          z1 = torch.nn.Parameter(
+              get_z_vector((batch_size, *z1_dim),
+                          mode=mode,
+                          limit=limit,
+                          device=x.device))
+          # print('z1: ', z1.min(), z1.max())
+        else:
+          print("==> z predictor found, using it...")
+          z1 = torch.nn.Parameter(
+            z_predictor(forward_model(x.unsqueeze(0).clamp(0, 1)))
+          )
+
         params = [z1]
         if len(z2_dim) > 0:
             z2 = torch.nn.Parameter(
@@ -139,6 +149,7 @@ def _recover(x,
     x = x.expand(batch_size, *x.shape)
 
     y_observed = forward_model(x)
+
     if (isinstance(forward_model, GaussianCompressiveSensing)):
         y_observed += noise
 
@@ -225,6 +236,7 @@ def _recover(x,
 
 def recover(x,
             gen,
+            z_predictor,
             optimizer_type,
             n_cuts,
             forward_model,
@@ -252,6 +264,7 @@ def recover(x,
             current_run_name = None
         return_val = _recover(x=x,
                               gen=gen,
+                              z_predictor=z_predictor,
                               optimizer_type=optimizer_type,
                               n_cuts=n_cuts,
                               forward_model=forward_model,

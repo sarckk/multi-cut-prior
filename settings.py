@@ -19,13 +19,8 @@ forward_models = {
         }],
     },
     'began_inv': {
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
-        'SuperResolution': [{
-            'scale_factor': 0.25,
-            'mode': 'bilinear',
-            'align_corners': True
+        'InpaintingSquare': [{
+            'mask_size': 32
         }],
     },
     'began_noop': {
@@ -45,13 +40,8 @@ forward_models = {
         } for x in n_measure_128]
     },
     'biggan_inv': {
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
-        'SuperResolution': [{
-            'scale_factor': 0.25,
-            'mode': 'bilinear',
-            'align_corners': True
+        'InpaintingSquare': [{
+            'mask_size': 256
         }],
     },
     'biggan_noop': {
@@ -68,13 +58,8 @@ forward_models = {
         } for x in n_measure_64]
     },
     'dcgan_inv': {
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
-        'SuperResolution': [{
-            'scale_factor': 0.25,
-            'mode': 'bilinear',
-            'align_corners': True
+        'InpaintingSquare': [{
+            'mask_size': 32
         }],
     },
     'dcgan_noop': {
@@ -284,11 +269,11 @@ recovery_settings = {
     },
     'dcgan_inv': {
         'optimizer': 'lbfgs',
-        'n_steps': 25,
+        'n_steps': 40,
         'z_lr': 0.1,
         'z_init_mode': ['clamped_normal'],
         'restarts': 3,
-        'n_cuts_list': [0, 1],
+        'n_cuts_list': [1],
         'limit': [1],
     },
     'dcgan_noop': {

@@ -189,6 +189,49 @@ class InpaintingScatter(ForwardModel):
         return f'InpaintingScatter.fraction_kept={self.fraction_kept}'
 
 
+# New code
+def rand_rect_mask(img_shape, mask_shape, device=None): 
+    """
+    For image of shape CHW, returns random boolean
+    mask of the same shape with random rectangular mask removed
+    """
+    mask = torch.ones(img_shape)
+    if device:
+        mask = mask.to(device)
+
+    img_h, img_w = img_shape[1], img_shape[2]
+    mask_h, mask_w = mask_shape
+
+    y0 = np.random.randint(img_h - mask_h + 1)
+    x0 = np.random.randint(img_w - mask_w + 1) 
+
+    mask[:, y0:y0 + mask_h,x0:x0 + mask_w] = 0
+    
+    return mask
+
+class InpaintingSquare(ForwardModel):
+    """
+    Mask rectangular pixels
+    """
+    viewable = True
+
+    def __init__(self, img_shape, mask_size, device=DEFAULT_DEVICE):
+        """
+        img_shape - 3 x H x W
+        fraction_kept - number in [0, 1], what portion of pixels to retain
+        """
+        self.mask_size = mask_size
+        self.A = rand_rect_mask(img_shape, mask_shape=(mask_size,mask_size)).to(device)
+
+    def __call__(self, img):
+        return self.A[None, ...] * img
+
+    def __str__(self):
+        return f'InpaintingScatter.mask_size={self.mask_size}'
+
+#
+
+
 class SuperResolution(ForwardModel):
     viewable = True
 

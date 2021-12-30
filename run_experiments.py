@@ -13,6 +13,7 @@ from iagan import iagan_recover
 from mgan import mgan_recover
 from model.began import Generator128
 from model.biggan import BigGanSkip
+from model.predictor import PredictorDCGAN
 from model.dcgan import Generator as dcgan_generator
 from model.vae import VAE
 from recover import recover, recover_dct
@@ -162,6 +163,25 @@ def gan_images(args):
 
     forwards = forward_models[args.model]
 
+    # new code
+    z_predictor = None
+
+    if args.p_ckpt is not None:
+      if args.model == 'dcgan_inv':
+        z_predictor = PredictorDCGAN()
+        try: 
+          ckpt_dict = torch.load(args.p_ckpt)
+          predictor_state = {k: v for k, v in ckpt_dict['state_dict'].items() if k.startswith('predictor')}
+          predictor_state = {'.'.join(k.split(".")[1:]) :v for k,v in predictor_state.items() if not k.endswith('num_batches_tracked')}
+          z_predictor.load_state_dict(predictor_state)
+          z_predictor.eval()
+          z_predictor.to(DEVICE)
+          print("Successfully loaded weights for predictor network!")
+        except:
+          raise ValueError("Checkpoint for predictor network does not exist.")
+      
+    ###  
+
     data_split = Path(args.img_dir).name
     for img_name in tqdm(sorted(os.listdir(args.img_dir)),
                          desc='Images',
@@ -232,7 +252,7 @@ def gan_images(args):
                             current_run_name = None
 
                         recovered_img, distorted_img, _ = recover(
-                            orig_img, gen, metadata['optimizer'], n_cuts,
+                            orig_img, gen, z_predictor, metadata['optimizer'], n_cuts,
                             forward_model, z_init_mode, limit,
                             metadata['z_lr'], metadata['n_steps'],
                             metadata['restarts'], args.run_dir,
@@ -659,6 +679,7 @@ if __name__ == '__main__':
     p.add_argument('--img_dir', required=True, help='')
     p.add_argument('--model', required=True)
     p.add_argument('--run_dir', default=None)
+    p.add_argument('--p_ckpt', default=None)
     p.add_argument('--run_name', default=None)
     p.add_argument('--disable_tqdm', action='store_true')
     p.add_argument('--overwrite',
