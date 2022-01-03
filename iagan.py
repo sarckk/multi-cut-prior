@@ -23,6 +23,7 @@ def _iagan_recover(
         x,
         gen,
         forward_model,
+        n_cuts,
         optimizer_type='adam',
         mode='clamped_normal',
         limit=1,
@@ -39,7 +40,7 @@ def _iagan_recover(
     # Keep batch_size = 1
     batch_size = 1
 
-    z1_dim, z2_dim = gen.input_shapes[0]  # n_cuts = 0
+    z1_dim, z2_dim = gen.input_shapes[n_cuts]
 
     if (isinstance(forward_model, GaussianCompressiveSensing)):
         n_pixel_bora = 64 * 64 * 3
@@ -99,7 +100,7 @@ def _iagan_recover(
     save_img_every_n = 50
     for j in trange(z_steps1, desc='Stage1', leave=False):
         optimizer_z.zero_grad()
-        x_hat = gen.forward(z1, z2, n_cuts=0, **kwargs)
+        x_hat = gen.forward(z1, z2, n_cuts=n_cuts, **kwargs)
         if gen.rescale:
             x_hat = (x_hat + 1) / 2
         train_mse = F.mse_loss(forward_model(x_hat), y_observed)
@@ -133,7 +134,7 @@ def _iagan_recover(
     for j in trange(z_steps2, desc='Stage2', leave=False):
         optimizer_z.zero_grad()
         optimizer_model.zero_grad()
-        x_hat = gen.forward(z1, z2, n_cuts=0, **kwargs)
+        x_hat = gen.forward(z1, z2, n_cuts=n_cuts, **kwargs)
         if gen.rescale:
             x_hat = (x_hat + 1) / 2
         train_mse = F.mse_loss(forward_model(x_hat), y_observed)
@@ -169,6 +170,7 @@ def iagan_recover(x,
                   gen,
                   forward_model,
                   optimizer_type,
+                  n_cuts,
                   mode='clamped_normal',
                   limit=1,
                   z_lr1=1e-4,
@@ -196,6 +198,7 @@ def iagan_recover(x,
         return_val = _iagan_recover(x=x,
                                     gen=gen,
                                     forward_model=forward_model,
+                                    n_cuts=n_cuts,
                                     optimizer_type=optimizer_type,
                                     mode=mode,
                                     limit=limit,

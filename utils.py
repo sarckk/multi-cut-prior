@@ -12,6 +12,7 @@ from PIL import Image
 from scipy.stats import truncnorm
 from torchvision import transforms
 from model.dcgan import Generator as GeneratorDCGAN, Discriminator as DiscriminatorDCGAN
+from model.began import Generator128, BEGAN_Decoder
 
 def print_torchvec(x):
     return ','.join([f'{i:0.3f}' for i in x.tolist()])
@@ -389,7 +390,25 @@ def load_pretrained_dcgan_disc(state_dict):
   _load_state_dcgan(state_dict['discriminator'], disc, old_to_new, True)
   return disc
 
-
+def load_pretrained_began_gen(state_dict):
+    gen = BEGAN_Decoder()
+    old_to_new = {
+        'l0': 'layers.0.0', # linear
+        'l1': 'layers.1.net.0',
+        'l2': 'layers.2.net.0',
+        'l3': 'layers.4.net.0',
+        'l4': 'layers.5.net.0',
+        'l5': 'layers.7.net.0',
+        'l6': 'layers.8.net.0',
+        'l7': 'layers.10.net.0',
+        'l8': 'layers.11.net.0',
+        'l9': 'layers.15.0',
+        'l10': 'layers.13.net.0',
+        'l11': 'layers.14.net.0',
+    }
+    new_state_dict = _rename_state_dict(old_to_new, state_dict)
+    gen.load_state_dict(new_state_dict)
+    return gen
 ##
 
 

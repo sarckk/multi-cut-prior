@@ -202,8 +202,10 @@ def rand_rect_mask(img_shape, mask_shape, device=None):
     img_h, img_w = img_shape[1], img_shape[2]
     mask_h, mask_w = mask_shape
 
-    y0 = np.random.randint(img_h - mask_h + 1)
-    x0 = np.random.randint(img_w - mask_w + 1) 
+#     y0 = np.random.randint(img_h - mask_h + 1)
+#     x0 = np.random.randint(img_w - mask_w + 1) 
+    y0 = img_h // 2
+    x0 = img_w // 2
 
     mask[:, y0:y0 + mask_h,x0:x0 + mask_w] = 0
     
