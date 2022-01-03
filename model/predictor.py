@@ -1,4 +1,7 @@
+import torch
 import torch.nn as nn
+
+from .helper import ConvBlock
 
 class PredictorDCGAN(nn.Module):
     def __init__(self, nc = 3, ndf = 64):
@@ -25,3 +28,35 @@ class PredictorDCGAN(nn.Module):
     def forward(self, x):
         output = self.main(x)
         return output
+    
+    
+
+class PredictorBEGAN(nn.Module):
+    def __init__(self):
+        super(PredictorBEGAN, self).__init__()
+        self.num_channel = 32 # this ensures that the final number of channels is 32 * 4 = 128
+        self.layers = nn.Sequential(
+            ConvBlock(3, self.num_channel, 3, 1, 1),
+            ConvBlock(self.num_channel, self.num_channel, 3, 1, 1),
+            ConvBlock(self.num_channel, self.num_channel, 3, 1, 1),
+            nn.Conv2d(self.num_channel, self.num_channel, 1, 1, 0),
+            nn.AvgPool2d(2, 2),
+            
+            ConvBlock(self.num_channel, self.num_channel, 3, 1, 1),
+            ConvBlock(self.num_channel, self.num_channel, 3, 1, 1),
+            nn.Conv2d(self.num_channel, 2*self.num_channel, 1, 1, 0),
+            nn.AvgPool2d(2, 2),
+            
+            ConvBlock(2*self.num_channel, 2*self.num_channel, 3, 1, 1),
+            ConvBlock(2*self.num_channel, 2*self.num_channel, 3, 1, 1),
+            nn.Conv2d(2*self.num_channel, 3*self.num_channel, 1, 1, 0),
+            nn.AvgPool2d(2, 2),
+            
+            ConvBlock(3*self.num_channel, 3*self.num_channel, 3, 1, 1),
+            ConvBlock(3*self.num_channel, 3*self.num_channel, 3, 1, 1),
+            nn.Conv2d(3*self.num_channel, 4*self.num_channel, 1, 1, 0),
+            nn.AvgPool2d(2, 2)
+        )
+    
+    def forward(self, x):
+        return self.layers(x)

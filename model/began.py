@@ -1,26 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .helper import View
-
-class ConvBlock(nn.Module):
-    """
-    All convs are created with:
-    conv(in_channel, out_channel, kernel, stride, pad, bias)
-    """
-    def __init__(self, in_ch, out_ch, k, s, p, b):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(in_ch,
-                      out_ch,
-                      kernel_size=k,
-                      stride=s,
-                      padding=p,
-                      bias=b), nn.ELU())
-
-    def forward(self, x):
-        return self.net(x)
-
+from .helper import View, ConvBlock
 
 class Generator128(nn.Module):
     rescale = False

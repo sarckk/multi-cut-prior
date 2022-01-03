@@ -409,6 +409,26 @@ def load_pretrained_began_gen(state_dict):
     new_state_dict = _rename_state_dict(old_to_new, state_dict)
     gen.load_state_dict(new_state_dict)
     return gen
+
+def load_pretrained_began_disc(state_dict):
+    disc = BEGAN_Discriminator()
+    old_to_new = {
+        'l0': 'layers.0.0', # linear
+        'l1': 'layers.1.net.0',
+        'l2': 'layers.2.net.0',
+        'l3': 'layers.4.net.0',
+        'l4': 'layers.5.net.0',
+        'l5': 'layers.7.net.0',
+        'l6': 'layers.8.net.0',
+        'l7': 'layers.10.net.0',
+        'l8': 'layers.11.net.0',
+        'l9': 'layers.15.0',
+        'l10': 'layers.13.net.0',
+        'l11': 'layers.14.net.0',
+    }
+    new_state_dict = _rename_state_dict(old_to_new, state_dict)
+    disc.load_state_dict(new_state_dict)
+    return disc
 ##
 
 
