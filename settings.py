@@ -207,7 +207,7 @@ recovery_settings = {
         'z_lr': 1,
         'z_init_mode': ['clamped_normal'],
         'restarts': 3,
-        'n_cuts_list': [0, 2],
+        'n_cuts_list': [2],
         'limit': [1],
     },
     'began_noop': {

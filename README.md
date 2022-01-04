@@ -1,3 +1,9 @@
+```python
+python run_experiments.py --img_dir ./images/ood-examples --model iagan_began_inv --run_dir began_iagan_finetuned --run_name began_iagan_finetuned --gen_0_path ./trained_model/iagan_began_inv_cuts=0.pth --gen_1_path ./trained_model/iagan_began_inv_cuts=1.pth
+```
+
+
+
 # Generator Surgery for Compressed Sensing
 by Jung Yeon Park\*, Niklas Smedemark-Margulies\*, Max Daniels, Rose Yu, Jan-Willem van de Meent, and Paul Hand
 
