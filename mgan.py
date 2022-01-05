@@ -19,7 +19,8 @@ warnings.filterwarnings("ignore")
 
 def _mgan_recover(x,
                   gen,
-                  n_cuts,
+                  first_cut,
+                  second_cut,
                   forward_model,
                   optimizer_type='sgd',
                   mode='zero',
@@ -41,8 +42,8 @@ def _mgan_recover(x,
         run_name - use None for no logging
     """
 
-    z1_dim, _ = gen.input_shapes[0]
-    _, z2_dim = gen.input_shapes[n_cuts]
+    z1_dim, z1_dim2 = gen.input_shapes[first_cut]
+    _, z2_dim = gen.input_shapes[second_cut]
 
     if (isinstance(forward_model, GaussianCompressiveSensing)):
         n_pixel_bora = 64 * 64 * 3
@@ -51,9 +52,19 @@ def _mgan_recover(x,
         noise *= 0.1 * torch.sqrt(torch.tensor(n_pixel / forward_model.n_measure / n_pixel_bora))
 
     z1 = torch.nn.Parameter(get_z_vector((z_number, *z1_dim), mode=mode, limit=limit, device=x.device))
+        
     alpha = torch.nn.Parameter(
-        get_z_vector((z_number, gen.input_shapes[n_cuts][0][0]), mode=mode, limit=limit, device=x.device))
+        get_z_vector((z_number, gen.input_shapes[second_cut][0][0]), mode=mode, limit=limit, device=x.device))
+    
+    
     params = [z1, alpha]
+    
+    if len(z1_dim2) > 0:
+        z1_2 = torch.nn.Parameter(get_z_vector((z_number, *z1_dim2), mode=mode, limit=limit, device=x.device))
+        params.append(z1_2)
+    else:
+        z1_2 = None
+        
     if len(z2_dim) > 0:
         z2 = torch.nn.Parameter(get_z_vector((1, *z2_dim), mode=mode, limit=limit, device=x.device))
         params.append(z2)
@@ -93,11 +104,10 @@ def _mgan_recover(x,
         y_observed += noise
 
     for j in trange(n_steps, leave=False, desc='Recovery', disable=disable_tqdm):
-
         optimizer_z.zero_grad()
-        F_l = gen.forward(z1, None, n_cuts=0, end=n_cuts, **kwargs)
+        F_l = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
         F_l_2 = (F_l * alpha[:, :, None, None]).sum(0, keepdim=True)
-        x_hats = gen.forward(F_l_2, z2, n_cuts=n_cuts, end=None, **kwargs)
+        x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
         if gen.rescale:
             x_hats = (x_hats + 1) / 2
         train_mse = F.mse_loss(forward_model(x_hats), y_observed)
@@ -129,7 +139,8 @@ def _mgan_recover(x,
 
 def mgan_recover(x,
                  gen,
-                 n_cuts,
+                 first_cut,
+                 second_cut,
                  forward_model,
                  optimizer_type='sgd',
                  mode='zero',
@@ -153,7 +164,8 @@ def mgan_recover(x,
             current_run_name = None
         return_val = _mgan_recover(x=x,
                                    gen=gen,
-                                   n_cuts=n_cuts,
+                                   first_cut=first_cut,
+                                   second_cut=second_cut,
                                    forward_model=forward_model,
                                    optimizer_type=optimizer_type,
                                    mode=mode,

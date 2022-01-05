@@ -153,6 +153,16 @@ forward_models = {
             'n_measure': x
         } for x in n_measure_128]
     },
+    'mgan_dcgan_inv': {
+        'InpaintingSquare': [{
+            'mask_size': 14
+        }],
+    },
+    'mgan_began_inv': {
+        'InpaintingSquare': [{
+            'mask_size': 32
+        }],
+    },
 }
 
 baseline_settings = {
@@ -473,5 +483,23 @@ recovery_settings = {
         'depth': 6,
         'num_filters': 89,
         'img_size': 128,
+    },
+    'mgan_dcgan_inv': {
+        'optimizer': 'adam',
+        'n_steps': 5000,
+        'z_lr': 3e-2,
+        'z_init_mode': ['clamped_normal'],
+        'limit': [1],
+        'z_number': 10,
+        'restarts': 3,
+    },
+    'mgan_began_inv': {
+        'optimizer': 'adam',
+        'n_steps': 3000,
+        'z_lr': 1e-3,
+        'z_init_mode': ['clamped_normal'],
+        'limit': [1],
+        'z_number': 20,
+        'restarts': 3,
     },
 }

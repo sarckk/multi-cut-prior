@@ -466,34 +466,25 @@ def mgan_images(args):
 
     os.makedirs(BASE_DIR, exist_ok=True)
 
-    if args.model in ['mgan_began_cs']:
-        gen = Generator128(64)
-        gen = load_trained_net(
-            gen, ('./checkpoints/celeba_began.withskips.bs32.cosine.min=0.25'
-                  '.n_cuts=0/gen_ckpt.49.pt'))
-        gen = gen.eval().to(DEVICE)
-        img_size = 128
-    elif args.model in ['mgan_vanilla_vae_cs']:
-        gen = VAE()
-        t = torch.load('./vae_checkpoints/vae_bs=128_beta=1.0/epoch_19.pt')
-        gen.load_state_dict(t)
-        gen = gen.eval().to(DEVICE)
-        gen = gen.decoder
-        img_size = 128
-    elif args.model in ['mgan_dcgan_cs']:
-        gen = dcgan_generator()
-        t = torch.load(('./dcgan_checkpoints/netG.epoch_24.n_cuts_0.bs_64'
-                        '.b1_0.5.lr_0.0002.pt'))
-        gen.load_state_dict(t)
-        gen = gen.eval().to(DEVICE)
-        img_size = 64
-    else:
-        raise NotImplementedError()
-
+    def reset_gen():
+        if args.model in ['mgan_began_inv']:
+            state_dict = torch.load('./trained_model/gen_208000.pth', map_location=DEVICE)
+            gen = load_pretrained_began_gen(state_dict)
+            gen = gen.eval().to(DEVICE)
+            img_size = 128
+        elif args.model in ['mgan_dcgan_inv']:
+            state_dict = torch.load('./trained_model/dcgan.pth', map_location=DEVICE)
+            gen = load_pretrained_dcgan_gen(state_dict)
+            gen = gen.eval().to(DEVICE)
+            img_size = 64
+        else:
+            raise NotImplementedError()
+        return gen, img_size
+    
+    gen, img_size = reset_gen()
+    num_layers = len(gen.input_shapes)
     img_shape = (3, img_size, img_size)
     metadata = recovery_settings[args.model]
-    n_cuts_list = metadata['n_cuts_list']
-    del (metadata['n_cuts_list'])
 
     z_init_mode_list = metadata['z_init_mode']
     limit_list = metadata['limit']
@@ -512,94 +503,105 @@ def mgan_images(args):
         orig_img = load_target_image(os.path.join(args.img_dir, img_name),
                                      img_size).to(DEVICE)
         img_basename, _ = os.path.splitext(img_name)
+        print("==> Running experiments for: ", img_name)
 
-        for n_cuts in tqdm(n_cuts_list,
+        for first_cut in tqdm(range(2, num_layers-4),
                            desc='N_cuts',
                            leave=False,
                            disable=args.disable_tqdm):
-            metadata['n_cuts'] = n_cuts
-            for i, (f, f_args_list) in enumerate(
-                    tqdm(forwards.items(),
-                         desc='Forwards',
-                         leave=False,
-                         disable=args.disable_tqdm)):
-                for f_args in tqdm(f_args_list,
-                                   desc=f'{f} Args',
-                                   leave=False,
-                                   disable=args.disable_tqdm):
+            metadata['first_cut'] = first_cut
+            
+            for second_cut in tqdm(range(first_cut+1, num_layers, 2),
+                               desc='N_cuts',
+                               leave=False,
+                               disable=args.disable_tqdm):
+                
+                metadata['second_cut'] = second_cut
+                
+                print(f"===> Testing out combination: [{first_cut}, {second_cut}]")
+       
+                for i, (f, f_args_list) in enumerate(
+                        tqdm(forwards.items(),
+                             desc='Forwards',
+                             leave=False,
+                             disable=args.disable_tqdm)):
+                    for f_args in tqdm(f_args_list,
+                                       desc=f'{f} Args',
+                                       leave=False,
+                                       disable=args.disable_tqdm):
 
-                    f_args['img_shape'] = img_shape
-                    forward_model = get_forward_model(f, **f_args)
+                        f_args['img_shape'] = img_shape
+                        forward_model = get_forward_model(f, **f_args)
 
-                    for z_init_mode, limit in zip(
-                            tqdm(z_init_mode_list,
-                                 desc='z_init_mode',
-                                 leave=False), limit_list):
-                        metadata['z_init_mode'] = z_init_mode
-                        metadata['limit'] = limit
+                        for z_init_mode, limit in zip(
+                                tqdm(z_init_mode_list,
+                                     desc='z_init_mode',
+                                     leave=False), limit_list):
+                            metadata['z_init_mode'] = z_init_mode
+                            metadata['limit'] = limit
 
-                        # Before doing recovery, check if results already exist
-                        # and possibly skip
-                        recovered_name = 'recovered.pt'
-                        results_folder = get_results_folder(
-                            image_name=img_basename,
-                            model=args.model,
-                            n_cuts=n_cuts,
-                            split=data_split,
-                            forward_model=forward_model,
-                            recovery_params=dict_to_str(metadata),
-                            base_dir=BASE_DIR)
+                            # Before doing recovery, check if results already exist
+                            # and possibly skip
+                            recovered_name = 'recovered.pt'
+                            results_folder = get_results_folder(
+                                image_name=img_basename,
+                                model=args.model,
+                                n_cuts=str([first_cut,second_cut]),
+                                split=data_split,
+                                forward_model=forward_model,
+                                recovery_params=dict_to_str(metadata),
+                                base_dir=BASE_DIR)
 
-                        os.makedirs(results_folder, exist_ok=True)
+                            os.makedirs(results_folder, exist_ok=True)
 
-                        recovered_path = results_folder / recovered_name
-                        if os.path.exists(
-                                recovered_path) and not args.overwrite:
-                            print(
-                                f'{recovered_path} already exists, skipping...'
-                            )
-                            continue
+                            recovered_path = results_folder / recovered_name
+                            if os.path.exists(
+                                    recovered_path) and not args.overwrite:
+                                print(
+                                    f'{recovered_path} already exists, skipping...'
+                                )
+                                continue
 
-                        if args.run_name is not None:
-                            current_run_name = (
-                                f'{img_basename}.{forward_model}'
-                                f'.{dict_to_str(metadata)}'
-                                f'.{args.run_name}')
-                        else:
-                            current_run_name = None
+                            if args.run_name is not None:
+                                current_run_name = (
+                                    f'{img_basename}.{forward_model}'
+                                    f'.{dict_to_str(metadata)}'
+                                    f'.{args.run_name}')
+                            else:
+                                current_run_name = None
 
-                        recovered_img, distorted_img, _ = mgan_recover(
-                            orig_img, gen, n_cuts, forward_model,
-                            metadata['optimizer'], z_init_mode, limit,
-                            metadata['z_lr'], metadata['n_steps'],
-                            metadata['z_number'], metadata['restarts'],
-                            args.run_dir, current_run_name, args.disable_tqdm)
+                            recovered_img, distorted_img, _ = mgan_recover(
+                                orig_img, gen, first_cut, second_cut, forward_model,
+                                metadata['optimizer'], z_init_mode, limit,
+                                metadata['z_lr'], metadata['n_steps'],
+                                metadata['z_number'], metadata['restarts'],
+                                args.run_dir, current_run_name, args.disable_tqdm)
 
-                        # Make images folder
-                        img_folder = get_images_folder(split=data_split,
-                                                       image_name=img_basename,
-                                                       img_size=img_size,
-                                                       base_dir=BASE_DIR)
-                        os.makedirs(img_folder, exist_ok=True)
+                            # Make images folder
+                            img_folder = get_images_folder(split=data_split,
+                                                           image_name=img_basename,
+                                                           img_size=img_size,
+                                                           base_dir=BASE_DIR)
+                            os.makedirs(img_folder, exist_ok=True)
 
-                        # Save original image if needed
-                        original_img_path = img_folder / 'original.pt'
-                        if not os.path.exists(original_img_path):
-                            torch.save(orig_img, original_img_path)
+                            # Save original image if needed
+                            original_img_path = img_folder / 'original.pt'
+                            if not os.path.exists(original_img_path):
+                                torch.save(orig_img, original_img_path)
 
-                        # Save distorted image if needed
-                        if forward_model.viewable:
-                            distorted_img_path = img_folder / f'{forward_model}.pt'
-                            if not os.path.exists(distorted_img_path):
-                                torch.save(distorted_img, distorted_img_path)
+                            # Save distorted image if needed
+                            if forward_model.viewable:
+                                distorted_img_path = img_folder / f'{forward_model}.pt'
+                                if not os.path.exists(distorted_img_path):
+                                    torch.save(distorted_img, distorted_img_path)
 
-                        # Save recovered image and metadata
-                        torch.save(recovered_img, recovered_path)
-                        pickle.dump(
-                            metadata,
-                            open(results_folder / 'metadata.pkl', 'wb'))
-                        p = psnr(recovered_img, orig_img)
-                        pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
+                            # Save recovered image and metadata
+                            torch.save(recovered_img, recovered_path)
+                            pickle.dump(
+                                metadata,
+                                open(results_folder / 'metadata.pkl', 'wb'))
+                            p = psnr(recovered_img, orig_img)
+                            pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
 
 
 def deep_decoder_images(args):
@@ -761,6 +763,8 @@ if __name__ == '__main__':
             'mgan_began_cs',
             'mgan_vanilla_vae_cs',
             'mgan_dcgan_cs',
+            'mgan_began_inv',
+            'mgan_dcgan_inv',
     ]:
         mgan_images(args)
     elif args.model in [
