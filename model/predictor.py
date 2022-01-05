@@ -4,6 +4,35 @@ import torch.nn as nn
 from .helper import ConvBlock, conv
 
 
+class PredictorDCGANFull(nn.Module):
+    def __init__(self, nc = 3, ndf = 64):
+        super(PredictorDCGAN, self).__init__()
+        self.main = nn.Sequential(
+            # input is (nc) x 64 x 64
+            conv(nc, ndf, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf) x 32 x 32
+            conv(ndf, ndf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*2) x 16 x 16
+            conv(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*4) x 8 x 8
+            conv(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*8) x 4 x 4
+            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        output = self.main(x)
+        return output.view(-1, 1).squeeze(1)
+
+
 class PredictorDCGAN(nn.Module):
     def __init__(self, nc = 3, ndf = 64):
         super(PredictorDCGAN, self).__init__()
@@ -29,7 +58,6 @@ class PredictorDCGAN(nn.Module):
     def forward(self, x):
         output = self.main(x)
         return output
-    
     
 
 class PredictorBEGAN(nn.Module):

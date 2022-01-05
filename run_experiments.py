@@ -505,13 +505,13 @@ def mgan_images(args):
         img_basename, _ = os.path.splitext(img_name)
         print("==> Running experiments for: ", img_name)
 
-        for first_cut in tqdm(range(2, num_layers-4),
+        for first_cut in tqdm(range(1, 4),
                            desc='N_cuts',
                            leave=False,
                            disable=args.disable_tqdm):
             metadata['first_cut'] = first_cut
             
-            for second_cut in tqdm(range(first_cut+1, num_layers, 2),
+            for second_cut in tqdm(range(6, num_layers),
                                desc='N_cuts',
                                leave=False,
                                disable=args.disable_tqdm):

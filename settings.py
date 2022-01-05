@@ -213,11 +213,11 @@ recovery_settings = {
     },
     'began_inv': {
         'optimizer': 'lbfgs',
-        'n_steps': 25,
+        'n_steps': 50,
         'z_lr': 1,
         'z_init_mode': ['clamped_normal'],
-        'restarts': 3,
-        'n_cuts_list': [2],
+        'restarts': 1,
+        'n_cuts_list': [1, 2, 3],
         'limit': [1],
     },
     'began_noop': {
@@ -494,9 +494,9 @@ recovery_settings = {
         'restarts': 3,
     },
     'mgan_began_inv': {
-        'optimizer': 'adam',
-        'n_steps': 3000,
-        'z_lr': 1e-3,
+        'optimizer': 'lbfgs',
+        'n_steps': 25,
+        'z_lr': 1,
         'z_init_mode': ['clamped_normal'],
         'limit': [1],
         'z_number': 20,

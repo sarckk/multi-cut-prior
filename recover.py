@@ -127,6 +127,11 @@ def _recover(x,
         optimizer_z = torch.optim.LBFGS(params, lr=z_lr)
         scheduler_z = None
         save_img_every_n = 2
+    elif optimizer_type == 'adam':
+        optimizer_z = torch.optim.Adam(params,
+                                        lr=z_lr)
+        scheduler_z = None
+        save_img_every_n = 50
     else:
         raise NotImplementedError()
 

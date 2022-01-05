@@ -81,6 +81,17 @@ def _mgan_recover(x,
         # scheduler_z = torch.optim.lr_scheduler.CosineAnnealingLR(
         #     optimizer_z, n_steps, 0.05 * z_lr)
         save_img_every_n = 50
+    elif optimizer_type == 'lbfgs':
+        optimizer_z = torch.optim.LBFGS(params, lr=z_lr)
+        scheduler_z = None
+        save_img_every_n = 2
+    elif optimizer_type == 'adamW':
+        optimizer_z = torch.optim.AdamW(params,
+                                        lr=z_lr,
+                                        betas=(0.5, 0.999),
+                                        weight_decay=0)
+        scheduler_z = None
+        save_img_every_n = 50
     else:
         raise NotImplementedError()
 
@@ -104,16 +115,26 @@ def _mgan_recover(x,
         y_observed += noise
 
     for j in trange(n_steps, leave=False, desc='Recovery', disable=disable_tqdm):
-        optimizer_z.zero_grad()
-        F_l = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
-        F_l_2 = (F_l * alpha[:, :, None, None]).sum(0, keepdim=True)
-        x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
-        if gen.rescale:
-            x_hats = (x_hats + 1) / 2
-        train_mse = F.mse_loss(forward_model(x_hats), y_observed)
-        train_mse.backward()
-        optimizer_z.step()
-
+        
+        def closure():
+            optimizer_z.zero_grad()
+            F_l = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
+            F_l_2 = (F_l * alpha[:, :, None, None]).sum(0, keepdim=True) / z_number
+            x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
+            if gen.rescale:
+                x_hats = (x_hats + 1) / 2
+            train_mse = F.mse_loss(forward_model(x_hats), y_observed)
+            train_mse.backward()
+            return train_mse
+            
+        optimizer_z.step(closure)
+        with torch.no_grad():
+            F_l = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
+            F_l_2 = (F_l * alpha[:, :, None, None]).sum(0, keepdim=True) / z_number
+            x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
+            if gen.rescale:
+                x_hats = (x_hats + 1) / 2
+        
         train_mse_clamped = F.mse_loss(forward_model(x_hats.detach().clamp(0, 1)), y_observed)
         orig_mse_clamped = F.mse_loss(x_hats.detach().clamp(0, 1), x)
 
