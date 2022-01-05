@@ -1,6 +1,16 @@
 ```python
-python run_experiments.py --img_dir ./images/ood-examples --model iagan_began_inv --run_dir began_iagan_finetuned --run_name began_iagan_finetuned --gen_0_path ./trained_model/iagan_began_inv_cuts=0.pth --gen_1_path ./trained_model/iagan_began_inv_cuts=1.pth
+python run_experiments.py --img_dir ./images/two-sample/ --model mgan_began_inv --run_dir mgan_began_lbfgs_dividebycode_2 --run_name mgan_began_lbfgs_dividebycode_2
 ```
+
+# List of best runs by PSNR
+
+## 000000076227.jpg 
+
+1. first_cut=1, second_cut=12 | 29.33
+
+2. first_cut=2, second_cut=6  | 29.24
+
+3. first_cut=2, second_cut=9  | 29.11
 
 
 

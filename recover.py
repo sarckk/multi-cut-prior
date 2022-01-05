@@ -27,12 +27,11 @@ def _recover(x,
              optimizer_type,
              n_cuts,
              forward_model,
+             writer=None,
              mode='clamped_normal',
              limit=1,
              z_lr=0.5,
              n_steps=2000,
-             run_dir=None,
-             run_name=None,
              disable_tqdm=False,
              return_z1_z2=False,
              **kwargs):
@@ -135,21 +134,6 @@ def _recover(x,
     else:
         raise NotImplementedError()
 
-    if run_name is not None:
-        logdir = os.path.join('recovery_tensorboard_logs', run_dir, run_name)
-        if os.path.exists(logdir):
-            print("Overwriting pre-existing logs!")
-            shutil.rmtree(logdir)
-        writer = SummaryWriter(logdir)
-
-    # Save original and distorted image
-    if run_name is not None:
-        writer.add_image("Original/Clamp", x.clamp(0, 1))
-        if forward_model.viewable:
-            writer.add_image(
-                "Distorted/Clamp",
-                forward_model(x.unsqueeze(0).clamp(0, 1)).squeeze(0))
-
     # Recover image under forward model
     x = x.expand(batch_size, *x.shape)
 
@@ -183,51 +167,23 @@ def _recover(x,
             x_hats = gen.forward(z1, z2, n_cuts=n_cuts, **kwargs)
             if gen.rescale:
                 x_hats = (x_hats + 1) / 2
-            train_mses = F.mse_loss(forward_model(x_hats),
-                                    y_observed,
-                                    reduction='none')
-            train_mses = train_mses.view(batch_size, -1).mean(1)
-            train_mse = train_mses.sum()
 
-        train_mses_clamped = F.mse_loss(forward_model(x_hats.detach().clamp(
-            0, 1)),
-                                        y_observed,
-                                        reduction='none').view(batch_size,
-                                                               -1).mean(1)
-        orig_mses_clamped = F.mse_loss(x_hats.detach().clamp(0, 1),
-                                       x,
-                                       reduction='none').view(batch_size,
-                                                              -1).mean(1)
+        train_mse_clamped = F.mse_loss(forward_model(x_hats.detach().clamp(0, 1)), y_observed)
+        orig_mse_clamped = F.mse_loss(x_hats.detach().clamp(0, 1), x)
 
-        # batch_size = 1, so best and worst are meaningless.
-        # Restarts is handled in outer function
-        best_train_mse, best_idx = train_mses_clamped.min(0)
-        worst_train_mse, worst_idx = train_mses_clamped.max(0)
-        best_orig_mse = orig_mses_clamped[best_idx]
-        worst_orig_mse = orig_mses_clamped[worst_idx]
-
-        if run_name is not None and j == 0:
-            writer.add_image('Start', x_hats[best_idx].clamp(0, 1))
-
-        if run_name is not None:
-            writer.add_scalar('TRAIN_MSE/best', best_train_mse, j + 1)
-            writer.add_scalar('TRAIN_MSE/worst', worst_train_mse, j + 1)
-            writer.add_scalar('TRAIN_MSE/sum', train_mse, j + 1)
-            writer.add_scalar('ORIG_MSE/best', best_orig_mse, j + 1)
-            writer.add_scalar('ORIG_MSE/worst', worst_orig_mse, j + 1)
-            writer.add_scalar('ORIG_PSNR/best', psnr_from_mse(best_orig_mse),
-                              j + 1)
-            writer.add_scalar('ORIG_PSNR/worst', psnr_from_mse(worst_orig_mse),
-                              j + 1)
-
+        if writer is not None:
+            writer.add_scalar('TRAIN_MSE', train_mse_clamped, j + 1)
+            writer.add_scalar('ORIG_MSE', orig_mse_clamped, j + 1)
+            writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), j + 1)
+            
             if j % save_img_every_n == 0:
-                writer.add_image('Recovered/Best',
+                writer.add_image('Recovered',
                                  x_hats[best_idx].clamp(0, 1), j + 1)
 
         if scheduler_z is not None:
             scheduler_z.step()
 
-    if run_name is not None:
+    if writer is not None:
         writer.add_image('Final', x_hats[best_idx].clamp(0, 1))
 
     if return_z1_z2:
@@ -258,27 +214,36 @@ def recover(x,
 
     best_psnr = -float("inf")
     best_return_val = None
+    
+    writer = None
+    if run_name is not None:
+        logdir = os.path.join('recovery_tensorboard_logs', run_dir, run_name)
+        if os.path.exists(logdir):
+            print("Overwriting pre-existing logs!")
+            shutil.rmtree(logdir)
+        writer = SummaryWriter(logdir)
+
+    # Save original and distorted image
+    if writer is not None:
+        writer.add_image("Original/Clamp", x.clamp(0, 1))
+        if forward_model.viewable:
+            writer.add_image("Distorted/Clamp", forward_model(x.unsqueeze(0).clamp(0, 1)).squeeze(0))
 
     for i in trange(restarts,
                     desc='Restarts',
                     leave=False,
                     disable=disable_tqdm):
-        if run_name is not None:
-            current_run_name = f'{run_name}_{i}'
-        else:
-            current_run_name = None
         return_val = _recover(x=x,
                               gen=gen,
                               z_predictor=z_predictor,
                               optimizer_type=optimizer_type,
                               n_cuts=n_cuts,
                               forward_model=forward_model,
+                              writer=writer,
                               mode=mode,
                               limit=limit,
                               z_lr=z_lr,
                               n_steps=n_steps,
-                              run_dir=run_dir,
-                              run_name=current_run_name,
                               disable_tqdm=disable_tqdm,
                               return_z1_z2=return_z1_z2,
                               **kwargs)

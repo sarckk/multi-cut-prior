@@ -282,7 +282,7 @@ def gan_images(args):
                                 torch.save(distorted_img, distorted_img_path)
 
                         # Save recovered image and metadata
-                        torch.save(recovered_img, recovered_path)
+                        torch.save(recovered_img, recovered_path) # results_folder/ recovered.pt
                         pickle.dump(
                             metadata,
                             open(results_folder / 'metadata.pkl', 'wb'))

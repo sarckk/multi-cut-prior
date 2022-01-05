@@ -22,13 +22,13 @@ def _mgan_recover(x,
                   first_cut,
                   second_cut,
                   forward_model,
+                  writer=None,
                   optimizer_type='sgd',
                   mode='zero',
                   limit=1,
                   z_lr=1,
                   n_steps=2000,
                   z_number=20,
-                  run_dir=None,
                   run_name=None,
                   disable_tqdm=False,
                   **kwargs):
@@ -95,18 +95,6 @@ def _mgan_recover(x,
     else:
         raise NotImplementedError()
 
-    if run_name is not None:
-        logdir = os.path.join('recovery_tensorboard_logs', run_dir, run_name)
-        if os.path.exists(logdir):
-            print("Overwriting pre-existing logs!")
-            shutil.rmtree(logdir)
-        writer = SummaryWriter(logdir)
-
-    # Save original and distorted image
-    if run_name is not None:
-        writer.add_image("Original/Clamp", x.clamp(0, 1))
-        if forward_model.viewable:
-            writer.add_image("Distorted/Clamp", forward_model(x.unsqueeze(0).clamp(0, 1)).squeeze(0))
 
     # Recover image under forward model
     x = x.expand(1, *x.shape)
@@ -138,10 +126,10 @@ def _mgan_recover(x,
         train_mse_clamped = F.mse_loss(forward_model(x_hats.detach().clamp(0, 1)), y_observed)
         orig_mse_clamped = F.mse_loss(x_hats.detach().clamp(0, 1), x)
 
-        if run_name is not None and j == 0:
+        if writer is not None and j == 0:
             writer.add_image('Start', x_hats.clamp(0, 1).squeeze(0))
 
-        if run_name is not None:
+        if writer is not None:
             writer.add_scalar('TRAIN_MSE', train_mse_clamped, j + 1)
             writer.add_scalar('ORIG_MSE', orig_mse_clamped, j + 1)
             writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), j + 1)
@@ -152,7 +140,7 @@ def _mgan_recover(x,
         if scheduler_z is not None:
             scheduler_z.step()
 
-    if run_name is not None:
+    if writer is not None:
         writer.add_image('Final', x_hats.clamp(0, 1).squeeze(0))
 
     return x_hats.squeeze(0), forward_model(x)[0], train_mse_clamped
@@ -177,25 +165,34 @@ def mgan_recover(x,
 
     best_psnr = -float("inf")
     best_return_val = None
+    
+    writer = None
+    if run_name is not None:
+        logdir = os.path.join('recovery_tensorboard_logs', run_dir, run_name)
+        if os.path.exists(logdir):
+            print("Overwriting pre-existing logs!")
+            shutil.rmtree(logdir)
+        writer = SummaryWriter(logdir)
+
+    # Save original and distorted image
+    if writer is not None:
+        writer.add_image("Original/Clamp", x.clamp(0, 1))
+        if forward_model.viewable:
+            writer.add_image("Distorted/Clamp", forward_model(x.unsqueeze(0).clamp(0, 1)).squeeze(0))
 
     for i in trange(restarts, desc='Restarts', leave=False, disable=disable_tqdm):
-        if run_name is not None:
-            current_run_name = f'{run_name}_{i}'
-        else:
-            current_run_name = None
         return_val = _mgan_recover(x=x,
                                    gen=gen,
                                    first_cut=first_cut,
                                    second_cut=second_cut,
                                    forward_model=forward_model,
+                                   writer=writer,
                                    optimizer_type=optimizer_type,
                                    mode=mode,
                                    limit=limit,
                                    z_lr=z_lr,
                                    n_steps=n_steps,
                                    z_number=z_number,
-                                   run_dir=run_dir,
-                                   run_name=current_run_name,
                                    disable_tqdm=disable_tqdm,
                                    **kwargs)
         p = psnr_from_mse(return_val[2])
