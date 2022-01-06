@@ -229,7 +229,7 @@ class InpaintingSquare(ForwardModel):
         return self.A[None, ...] * img
 
     def __str__(self):
-        return f'InpaintingScatter.mask_size={self.mask_size}'
+        return f'InpaintingSquare.mask_size={self.mask_size}'
 
 #
 

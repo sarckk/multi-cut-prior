@@ -1,5 +1,9 @@
 ```python
-python run_experiments.py --img_dir ./images/two-sample/ --model mgan_began_inv --run_dir mgan_began_lbfgs_dividebycode_2 --run_name mgan_began_lbfgs_dividebycode_2
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name 000000076227.jpg  --model mgan_biggan_inv --run_dir mgan_biggan_inv --run_name mgan_biggan_inv --first_cut 1 --second_cut 15
+```
+
+```python
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name 000000076227.jpg --model began_inv --run_dir began_inv --run_name began_inv
 ```
 
 # List of best runs by PSNR
@@ -12,6 +16,12 @@ python run_experiments.py --img_dir ./images/two-sample/ --model mgan_began_inv 
 
 3. first_cut=2, second_cut=9  | 29.11
 
+
+# List of completed combinations
+
+## Biggan
+
+- first=1, second=14 (scatter & square)
 
 
 # Generator Surgery for Compressed Sensing

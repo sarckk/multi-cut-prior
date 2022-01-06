@@ -28,6 +28,7 @@ def _mgan_recover(x,
                   limit=1,
                   z_lr=1,
                   n_steps=2000,
+                  restart_idx=0,
                   z_number=20,
                   run_name=None,
                   disable_tqdm=False,
@@ -130,18 +131,18 @@ def _mgan_recover(x,
             writer.add_image('Start', x_hats.clamp(0, 1).squeeze(0))
 
         if writer is not None:
-            writer.add_scalar('TRAIN_MSE', train_mse_clamped, j + 1)
-            writer.add_scalar('ORIG_MSE', orig_mse_clamped, j + 1)
-            writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), j + 1)
+            writer.add_scalar('TRAIN_MSE', train_mse_clamped, restart_idx * n_steps + j + 1)
+            writer.add_scalar('ORIG_MSE', orig_mse_clamped, restart_idx * n_steps +  j + 1)
+            writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), restart_idx * n_steps +  j + 1)
 
             if j % save_img_every_n == 0:
-                writer.add_image('Recovered', x_hats.clamp(0, 1).squeeze(0), j + 1)
+                writer.add_image('Recovered', x_hats.clamp(0, 1).squeeze(0), restart_idx * n_steps + j + 1)
 
         if scheduler_z is not None:
             scheduler_z.step()
 
     if writer is not None:
-        writer.add_image('Final', x_hats.clamp(0, 1).squeeze(0))
+        writer.add_image('Final', x_hats.clamp(0, 1).squeeze(0), restart_idx)
 
     return x_hats.squeeze(0), forward_model(x)[0], train_mse_clamped
 
@@ -172,6 +173,7 @@ def mgan_recover(x,
         if os.path.exists(logdir):
             print("Overwriting pre-existing logs!")
             shutil.rmtree(logdir)
+
         writer = SummaryWriter(logdir)
 
     # Save original and distorted image
@@ -192,6 +194,7 @@ def mgan_recover(x,
                                    limit=limit,
                                    z_lr=z_lr,
                                    n_steps=n_steps,
+                                   restart_idx=i,
                                    z_number=z_number,
                                    disable_tqdm=disable_tqdm,
                                    **kwargs)

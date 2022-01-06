@@ -32,6 +32,7 @@ def _recover(x,
              limit=1,
              z_lr=0.5,
              n_steps=2000,
+             restart_idx=0,
              disable_tqdm=False,
              return_z1_z2=False,
              **kwargs):
@@ -172,27 +173,27 @@ def _recover(x,
         orig_mse_clamped = F.mse_loss(x_hats.detach().clamp(0, 1), x)
 
         if writer is not None:
-            writer.add_scalar('TRAIN_MSE', train_mse_clamped, j + 1)
-            writer.add_scalar('ORIG_MSE', orig_mse_clamped, j + 1)
-            writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), j + 1)
+            writer.add_scalar('TRAIN_MSE', train_mse_clamped, restart_idx * n_steps + j + 1)
+            writer.add_scalar('ORIG_MSE', orig_mse_clamped, restart_idx * n_steps + j + 1)
+            writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), restart_idx * n_steps + j + 1)
             
             if j % save_img_every_n == 0:
                 writer.add_image('Recovered',
-                                 x_hats[best_idx].clamp(0, 1), j + 1)
+                                 x_hats.clamp(0, 1).squeeze(0), restart_idx * n_steps + j + 1)
 
         if scheduler_z is not None:
             scheduler_z.step()
 
     if writer is not None:
-        writer.add_image('Final', x_hats[best_idx].clamp(0, 1))
+        writer.add_image('Final', x_hats.clamp(0, 1).squeeze(0), restart_idx)
 
     if return_z1_z2:
-        return x_hats[best_idx], forward_model(x)[0], best_train_mse, {
+        return x_hats.squeeze(0), forward_model(x)[0], train_mse_clamped, {
             'z1': z1,
             'z2': z2
         }
     else:
-        return x_hats[best_idx], forward_model(x)[0], best_train_mse
+        return x_hats.squeeze(0), forward_model(x)[0], train_mse_clamped
 
 
 def recover(x,
@@ -244,6 +245,7 @@ def recover(x,
                               limit=limit,
                               z_lr=z_lr,
                               n_steps=n_steps,
+                              restart_idx = i,
                               disable_tqdm=disable_tqdm,
                               return_z1_z2=return_z1_z2,
                               **kwargs)
