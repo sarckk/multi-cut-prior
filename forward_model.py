@@ -172,6 +172,7 @@ class InpaintingScatter(ForwardModel):
     Mask random pixels
     """
     viewable = True
+    inverse = False
 
     def __init__(self, img_shape, fraction_kept, device=DEFAULT_DEVICE):
         """
@@ -216,6 +217,7 @@ class InpaintingSquare(ForwardModel):
     Mask rectangular pixels
     """
     viewable = True
+    inverse = True
 
     def __init__(self, img_shape, mask_size, device=DEFAULT_DEVICE):
         """
@@ -227,6 +229,9 @@ class InpaintingSquare(ForwardModel):
 
     def __call__(self, img):
         return self.A[None, ...] * img
+    
+    def inverse(self, img):
+        return (1.0 - self.A[None, ...]) * img
 
     def __str__(self):
         return f'InpaintingSquare.mask_size={self.mask_size}'
@@ -236,6 +241,7 @@ class InpaintingSquare(ForwardModel):
 
 class SuperResolution(ForwardModel):
     viewable = True
+    inverse = False 
 
     def __init__(self, scale_factor, mode='linear', align_corners=True, **kwargs):
         self.scale_factor = scale_factor

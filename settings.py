@@ -7,32 +7,19 @@ forward_models = {
         'InpaintingSquare': [{
             'mask_size': 32
         }],
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
+#         'InpaintingScatter': [{
+#             'fraction_kept': 0.1
+#         }],
+#         'SuperResolution': [{
+#             'scale_factor': 0.25,
+#             'mode': 'bilinear',
+#             'align_corners': True
+#         }],
     },
     'biggan_inv': {
         'InpaintingSquare': [{
             'mask_size': 256
         }],
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
-    },
-    'mgan_biggan_inv': {
-        'InpaintingSquare': [{
-            'mask_size': 256
-        }],
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
-    },
-    'dcgan_inv': {
-        'InpaintingSquare': [{
-            'mask_size': 14
-        }],
-    },
-    'vanilla_vae_inv': {
         'InpaintingScatter': [{
             'fraction_kept': 0.1
         }],
@@ -42,19 +29,22 @@ forward_models = {
             'align_corners': True
         }],
     },
-    'iagan_dcgan_inv': {
+    'mgan_biggan_inv': {
+        'InpaintingSquare': [{
+            'mask_size': 256
+        }],
+        'InpaintingScatter': [{
+            'fraction_kept': 0.1
+        }],
+        'SuperResolution': [{
+            'scale_factor': 0.25,
+            'mode': 'bilinear',
+            'align_corners': True
+        }],
+    },
+    'dcgan_inv': {
         'InpaintingSquare': [{
             'mask_size': 14
-        }],
-    },
-    'iagan_began_inv': {
-        'InpaintingSquare': [{
-            'mask_size': 32
-        }],
-    },
-    'iagan_biggan_inv': {
-        'InpaintingSquare': [{
-            'mask_size': 32
         }],
     },
     'mgan_dcgan_inv': {
@@ -66,9 +56,14 @@ forward_models = {
         'InpaintingSquare': [{
             'mask_size': 32
         }],
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
+#         'InpaintingScatter': [{
+#             'fraction_kept': 0.1
+#         }],
+#         'SuperResolution': [{
+#             'scale_factor': 0.25,
+#             'mode': 'bilinear',
+#             'align_corners': True
+#         }],
     },
 }
 
@@ -86,15 +81,6 @@ baseline_settings = {
 }
 
 recovery_settings = {
-    'began_inv': {
-        'optimizer': 'lbfgs',
-        'n_steps': 80,
-        'z_lr': 0.8,
-        'z_init_mode': ['clamped_normal'],
-        'restarts': 3,
-        'n_cuts_list': [1, 2],
-        'limit': [1],
-    },
     'biggan_inv': {
         'optimizer': 'lbfgs',
         'n_steps': 25,
@@ -134,30 +120,6 @@ recovery_settings = {
         'n_cuts_list': [0,1],
         'limit': [1],
     },
-    'iagan_began_inv': {
-        'optimizer': 'adam',
-        'z_init_mode': ['clamped_normal'],
-        'z_steps1': 1600,
-        'z_steps2': 600,
-        'z_lr1': 1,
-        'z_lr2': 1e-4,
-        'model_lr': 1e-4,
-        'restarts': 3,
-        'n_cuts_list': [0,2],
-        'limit': [1],
-    },
-    'iagan_biggan_inv': {
-        'optimizer': 'adam',
-        'z_init_mode': ['clamped_normal'],
-        'z_steps1': 20,
-        'z_steps2': 10,
-        'z_lr1': 1.5,
-        'z_lr2': 1e-4,
-        'model_lr': 1e-4,
-        'restarts': 2,
-        'n_cuts_list': [0,7],
-        'limit': [1],
-    },
     'mgan_dcgan_inv': {
         'optimizer': 'adam',
         'n_steps': 5000,
@@ -167,14 +129,23 @@ recovery_settings = {
         'z_number': 10,
         'restarts': 3,
     },
+    'began_inv': {
+        'optimizer': 'lbfgs',
+        'n_steps': 120,
+        'z_lr': 0.8,
+        'z_init_mode': ['clamped_normal'],
+        'restarts': 1,
+        'n_cuts_list': [1,2],
+        'limit': [1],
+    },
     'mgan_began_inv': {
         'optimizer': 'lbfgs',
-        'n_steps': 80,
+        'n_steps': 120,
         'z_lr': 0.8,
         'z_init_mode': ['clamped_normal'],
         'limit': [1],
-        'z_number': 20,
-        'restarts': 3,
+        'z_number': 30,
+        'restarts': 1,
 #         'cuts': [[1,13], [1,14], [1,15], [2,6],[2,9],[2,11],[2,15], [3,9],[3,15],[4,9],[4,15]]
     },
      'mgan_biggan_inv': {

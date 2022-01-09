@@ -139,6 +139,8 @@ def _recover(x,
     x = x.expand(batch_size, *x.shape)
 
     y_observed = forward_model(x)
+    if forward_model.inverse:
+        y_masked_part = forward_model.inverse(x)
 
     if (isinstance(forward_model, GaussianCompressiveSensing)):
         y_observed += noise
@@ -171,15 +173,23 @@ def _recover(x,
 
         train_mse_clamped = F.mse_loss(forward_model(x_hats.detach().clamp(0, 1)), y_observed)
         orig_mse_clamped = F.mse_loss(x_hats.detach().clamp(0, 1), x)
-
+        if forward_model.inverse:
+            masked_mse_clamped = F.mse_loss(forward_model.inverse(x_hats.detach().clamp(0,1)), y_masked_part)
+        
+        global_idx = restart_idx * n_steps + j + 1
         if writer is not None:
-            writer.add_scalar('TRAIN_MSE', train_mse_clamped, restart_idx * n_steps + j + 1)
-            writer.add_scalar('ORIG_MSE', orig_mse_clamped, restart_idx * n_steps + j + 1)
-            writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), restart_idx * n_steps + j + 1)
+            writer.add_scalar('TRAIN_MSE', train_mse_clamped, global_idx)
+            writer.add_scalar('ORIG_MSE', orig_mse_clamped, global_idx)
+            writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), global_idx)
+            if forward_model.inverse:
+                writer.add_image('ORIG_MASKED', y_masked_part.clamp(0,1).squeeze(0), global_idx)
+                writer.add_image('RECOVERED_MASKED', forward_model.inverse(x_hats.detach().clamp(0,1)).squeeze(0), global_idx)
+                writer.add_scalar('ORIG_PSNR_ONLY_MASKED', psnr_from_mse(masked_mse_clamped), global_idx)
+
             
             if j % save_img_every_n == 0:
                 writer.add_image('Recovered',
-                                 x_hats.clamp(0, 1).squeeze(0), restart_idx * n_steps + j + 1)
+                                 x_hats.clamp(0, 1).squeeze(0), global_idx)
 
         if scheduler_z is not None:
             scheduler_z.step()
@@ -188,12 +198,12 @@ def _recover(x,
         writer.add_image('Final', x_hats.clamp(0, 1).squeeze(0), restart_idx)
 
     if return_z1_z2:
-        return x_hats.squeeze(0), forward_model(x)[0], train_mse_clamped, {
+        return x_hats.clamp(0,1).squeeze(0), forward_model(x)[0], train_mse_clamped, {
             'z1': z1,
             'z2': z2
         }
     else:
-        return x_hats.squeeze(0), forward_model(x)[0], train_mse_clamped
+        return x_hats.clamp(0,1).squeeze(0), forward_model(x)[0], train_mse_clamped
 
 
 def recover(x,
@@ -254,6 +264,10 @@ def recover(x,
             best_psnr = p
             best_return_val = return_val
 
+            
+    if writer is not None:
+        writer.add_image('Best recovered', best_return_val[0])
+        
     return best_return_val
 
 

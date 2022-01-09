@@ -1,9 +1,9 @@
 ```python
-python run_experiments.py --img_dir ./images/ood-examples/ --img_name 000000076227.jpg  --model mgan_biggan_inv --run_dir mgan_biggan_inv --run_name mgan_biggan_inv --first_cut 1 --second_cut 15
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name surfer.jpg  --model mgan_biggan_inv --run_dir mgan_biggan_inv --run_name mgan_biggan_inv_surfer --first_cut 7 --second_cut 15
 ```
 
 ```python
-python run_experiments.py --img_dir ./images/ood-examples/ --img_name 000000076227.jpg --model began_inv --run_dir began_inv --run_name began_inv
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name surfer.jpg --model began_inv --run_dir began_inv --run_name began_inv_surfer_norestart --overwrite
 ```
 
 # List of best runs by PSNR

@@ -20,7 +20,7 @@ from recover import recover, recover_dct
 from settings import baseline_settings, forward_models, recovery_settings
 from utils import (dict_to_str, get_baseline_results_folder, get_images_folder,
                    get_results_folder, load_target_image, load_trained_net,
-                   psnr, load_pretrained_dcgan_gen, load_pretrained_began_gen)
+                   psnr, psnr_from_mse, load_pretrained_dcgan_gen, load_pretrained_began_gen)
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -246,9 +246,8 @@ def gan_images(args):
 
                     if args.run_name is not None:
                         current_run_name = (
-                            f'{img_basename}.n_cuts={n_cuts}'
-                            f'.{forward_model}.z_lr={metadata["z_lr"]}'
-                            f'.z_init={z_init_mode}.limit={limit}'
+                            f'{img_basename}.{forward_model}'
+                            f'.{dict_to_str(metadata)}'
                             f'.{args.run_name}')
                     else:
                         current_run_name = None
@@ -285,173 +284,9 @@ def gan_images(args):
                         open(results_folder / 'metadata.pkl', 'wb'))
                     p = psnr(recovered_img, orig_img)
                     pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
+#                     p_masked = psnr_from_mse(masked_mse)
+#                     pickle.dump(p_masked, open(results_folder / 'psnr_masked.pkl', 'wb'))
 
-
-def iagan_images(args):
-    if args.set_seed:
-        torch.manual_seed(0)
-        np.random.seed(0)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
-    os.makedirs(BASE_DIR, exist_ok=True)
-
-    def reset_gen(cuts, cut_0_pth, cut_1_pth):
-        if args.model in ['iagan_began_cs', 'iagan_began_inv']:
-            state_dict = torch.load('./trained_model/gen_208000.pth', map_location=DEVICE)
-            gen = load_pretrained_began_gen(state_dict)
-            if cut_0_pth is not None:
-                if cuts != 0 and cut != 1:
-                    raise NotImplementedError()
-                    
-                state_dict = torch.load(cut_0_pth if cuts == 0 else cut_1_pth)
-                print('Found a loaded path, using that instead...')
-                gen.load_state_dict(state_dict)
-                
-            gen = gen.eval().to(DEVICE)
-            img_size = 128
-        elif args.model in ['iagan_dcgan_cs', 'iagan_dcgan_inv']:
-            state_dict = torch.load('./trained_model/dcgan.pth', map_location=DEVICE)
-            gen = load_pretrained_dcgan_gen(state_dict)
-            gen = gen.eval().to(DEVICE)
-            img_size = 64
-        elif args.model in ['iagan_vanilla_vae_cs']:
-            gen = VAE()
-            t = torch.load('./vae_checkpoints/vae_bs=128_beta=1.0/epoch_19.pt')
-            gen.load_state_dict(t)
-            gen = gen.eval().to(DEVICE)
-            gen = gen.decoder
-            img_size = 128
-        elif args.model in ['iagan_biggan_inv']:
-            gen = BigGanSkip().to(DEVICE)
-            img_size = 512
-        else:
-            raise NotImplementedError()
-        return gen, img_size
-
-    metadata = recovery_settings[args.model]
-
-    n_cuts_list = metadata['n_cuts_list']
-    del (metadata['n_cuts_list'])
-
-    z_init_mode_list = metadata['z_init_mode']
-    limit_list = metadata['limit']
-    assert len(z_init_mode_list) == len(limit_list)
-    del (metadata['z_init_mode'])
-    del (metadata['limit'])
-
-    forwards = forward_models[args.model]
-
-    data_split = Path(args.img_dir).name
-    
-    for n_cuts in tqdm(n_cuts_list,
-                               desc='N_cuts',
-                               leave=False,
-                               disable=args.disable_tqdm):
-        metadata['n_cuts'] = n_cuts
-            
-        # reset for each cut only
-        gen, img_size = reset_gen(n_cuts, args.gen_0_path, args.gen_1_path)
-        
-        for img_name in tqdm(sorted(os.listdir(args.img_dir)),
-                             desc='Images',
-                             leave=True,
-                             disable=args.disable_tqdm):
-
-            img_shape = (3, img_size, img_size)
-            # Load image and get filename without extension
-            orig_img = load_target_image(os.path.join(args.img_dir, img_name),
-                                         img_size).to(DEVICE)
-            img_basename, _ = os.path.splitext(img_name)
-
-            for i, (f, f_args_list) in enumerate(
-                    tqdm(forwards.items(),
-                         desc='Forwards',
-                         leave=False,
-                         disable=args.disable_tqdm)):
-                    for f_args in tqdm(f_args_list,
-                                       desc=f'{f} Args',
-                                       leave=False,
-                                       disable=args.disable_tqdm):
-
-                        f_args['img_shape'] = img_shape
-                        forward_model = get_forward_model(f, **f_args)
-
-                        for z_init_mode, limit in zip(
-                                tqdm(z_init_mode_list, desc='z_init_mode',
-                                     leave=False), limit_list):
-                            metadata['z_init_mode'] = z_init_mode
-                            metadata['limit'] = limit
-
-                            # Before doing recovery, check if results already exist
-                            # and possibly skip
-                            recovered_name = 'recovered.pt'
-                            results_folder = get_results_folder(
-                                image_name=img_basename,
-                                model=args.model,
-                                n_cuts=0,  # NOTE - this field is unused for iagan
-                                split=data_split,
-                                forward_model=forward_model,
-                                recovery_params=dict_to_str(metadata),
-                                base_dir=BASE_DIR)
-
-                            os.makedirs(results_folder, exist_ok=True)
-
-                            recovered_path = results_folder / recovered_name
-                            if os.path.exists(recovered_path) and not args.overwrite:
-                                print(f'{recovered_path} already exists, skipping...')
-                                continue
-
-                            if args.run_name is not None:
-                                current_run_name = (
-                                    f'{img_basename}'
-                                    f'.{forward_model}'
-                                    f'.n_cuts={n_cuts}'
-                                    f'.z_steps1={metadata["z_steps1"]}'
-                                    f'.z_steps2={metadata["z_steps2"]}'
-                                    f'.z_lr1={metadata["z_lr1"]}'
-                                    f'.z_lr2={metadata["z_lr2"]}'
-                                    f'.model_lr={metadata["model_lr"]}'
-                                    f'.z_init={z_init_mode}.limit={limit}'
-                                    f'.{args.run_name}')
-                            else:
-                                current_run_name = None
-
-                            recovered_img, distorted_img, _ = iagan_recover(
-                                orig_img, gen, forward_model, metadata['optimizer'], n_cuts,
-                                z_init_mode, limit, metadata['z_lr1'],
-                                metadata['z_lr2'], metadata['model_lr'],
-                                metadata['z_steps1'], metadata['z_steps2'],
-                                metadata['restarts'], args.run_dir, current_run_name,
-                                args.disable_tqdm)
-
-                            # Make images folder
-                            img_folder = get_images_folder(split=data_split,
-                                                           image_name=img_basename,
-                                                           img_size=img_size,
-                                                           base_dir=BASE_DIR)
-                            os.makedirs(img_folder, exist_ok=True)
-
-                            # Save original image if needed
-                            original_img_path = img_folder / 'original.pt'
-                            if not os.path.exists(original_img_path):
-                                torch.save(orig_img, original_img_path)
-
-                            # Save distorted image if needed
-                            if forward_model.viewable:
-                                distorted_img_path = img_folder / f'{forward_model}.pt'
-                                if not os.path.exists(distorted_img_path):
-                                    torch.save(distorted_img, distorted_img_path)
-
-                            # Save recovered image and metadata
-                            torch.save(recovered_img, recovered_path)
-                            pickle.dump(metadata,
-                                        open(results_folder / 'metadata.pkl', 'wb'))
-                            p = psnr(recovered_img, orig_img)
-                            pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
-        
-        # Save the trained generator trained from the IAGAN process
-        # torch.save(gen.state_dict(), f'./trained_model/{args.model}_cuts={n_cuts}.pth')
 
 
 def mgan_images(args):
@@ -591,6 +426,8 @@ def mgan_images(args):
                     open(results_folder / 'metadata.pkl', 'wb'))
                 p = psnr(recovered_img, orig_img)
                 pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
+#                 p_masked = psnr_from_mse(masked_mse)
+#                 pickle.dump(p_masked, open(results_folder / 'psnr_masked.pkl', 'wb'))
 
 
 def deep_decoder_images(args):
