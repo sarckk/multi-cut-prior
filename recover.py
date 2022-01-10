@@ -35,7 +35,7 @@ def _recover(x,
              n_steps=2000,
              restart_idx=0,
              disable_tqdm=False,
-             use_tv_loss=False,
+             tv_weight=0.0,
              **kwargs):
 
     uses_multicode = (second_cut is not None and z_number != -1)
@@ -118,8 +118,8 @@ def _recover(x,
                 
             train_mse = F.mse_loss(forward_model(x_hats), y_observed)
             
-            if use_tv_loss:
-                tv_loss = 1e-8 * total_variation_loss(x_hats)
+            if tv_weight != 0.0:
+                tv_loss = tv_weight * total_variation_loss(x_hats)
             else:
                 tv_loss = 0.0
             
@@ -190,7 +190,7 @@ def recover(x,
             run_dir=None,
             run_name=None,
             disable_tqdm=False,
-            use_tv_loss=False,
+            tv_weight=0.0,
             **kwargs):
 
     best_psnr = -float("inf")
@@ -228,7 +228,7 @@ def recover(x,
                               n_steps=n_steps,
                               restart_idx = i,
                               disable_tqdm=disable_tqdm,
-                              use_tv_loss=use_tv_loss,
+                              tv_weight=tv_weight,
                               **kwargs)
 
         p = psnr_from_mse(return_val[2])

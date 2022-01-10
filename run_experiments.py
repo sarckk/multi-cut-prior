@@ -106,7 +106,8 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     z_number,
                     metadata['z_lr'], metadata['n_steps'],
                     metadata['restarts'], args.run_dir,
-                    current_run_name, args.disable_tqdm, args.use_tv_loss,
+                    current_run_name, args.disable_tqdm, 
+                    args.tv_weight,
                 )
 
                 # Make images folder
@@ -190,7 +191,7 @@ if __name__ == '__main__':
     p.add_argument('--second_cut', default=None, type=int)
     
     # regularizer
-    p.add_argument('--use_tv_loss', action='store_true', default=False)
+    p.add_argument('--tv_weight', type=float, default=0.0)
     
     p.add_argument('--run_name', default=None)
     p.add_argument('--disable_tqdm', action='store_true')
