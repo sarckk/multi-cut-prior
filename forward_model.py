@@ -208,7 +208,8 @@ def rand_rect_mask(img_shape, mask_shape, device=None):
     y0 = img_h // 2
     x0 = img_w // 2
 
-    mask[:, y0:y0 + mask_h,x0:x0 + mask_w] = 0
+    #. mask[:, y0 - mask_h//2 : y0 + mask_h//2, x0 - mask_w//2 : x0 + mask_w//2] = 0
+    mask[:, y0: y0 + mask_h, x0: x0 + mask_w] = 0
     
     return mask
 

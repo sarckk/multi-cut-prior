@@ -38,6 +38,7 @@ def patch_generator_forward(self, z1, z2=None, truncation=0.4, n_cuts=0, end=Non
 
         z1 = z1.view(-1, 4, 4, 16 * 128)
         z1 = z1.permute(0, 3, 1, 2).contiguous()
+        # print("first", z1.shape)
     else:
         n_cuts -= 1
     
@@ -53,8 +54,10 @@ def patch_generator_forward(self, z1, z2=None, truncation=0.4, n_cuts=0, end=Non
         if n_cuts == 0:
             if isinstance(layer, GenBlock):
                 z1 = layer(z1, z2, truncation)
+                # print("-->", z1.shape)
             else:
                 z1 = layer(z1)
+                # print("-->", z1.shape)
         else:
             n_cuts -= 1
         
@@ -71,11 +74,12 @@ def patch_generator_forward(self, z1, z2=None, truncation=0.4, n_cuts=0, end=Non
         z1 = self.tanh(z1)
     else:
         n_cuts -= 1
-        
+    
+    # print("-->", z1.shape)
     completed +=1
 
     assert n_cuts == 0
-    assert completed == end
+    # assert completed == end
     return z1
 
 
@@ -84,7 +88,7 @@ class BigGanSkip(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.biggan = BigGAN.from_pretrained('biggan-deep-512')
+        self.biggan = BigGAN.from_pretrained('biggan-deep-128')
         self.image_size = 512
     
 
@@ -97,7 +101,29 @@ class BigGanSkip(nn.Module):
         # to the skip connection ("x0")
         
 
-        # 18 available
+        # 18 available for 512
+#         self.input_shapes = [
+#             ((128, ), (128, )),  # Raw input shape
+#             ((2048, 4, 4), (256, )),  # Linear
+#             ((2048, 4, 4), (256, )),  # Block
+#             ((2048, 8, 8), (256, )),  # Block Up
+#             ((2048, 8, 8), (256, )),  # Block
+#             ((1024, 16, 16), (256, )),  # Block Up
+#             ((1024, 16, 16), (256, )),  # Block
+#             ((1024, 32, 32), (256, )),  # Block Up
+#             ((1024, 32, 32), (256, )),  # Block
+#             ((512, 64, 64), (256, )),  # Block Up
+#             ((512, 64, 64), (256, )),  # Self-Attention block
+#             ((512, 64, 64), (256, )),  # Block
+#             ((256, 128, 128), (256, )),  # Block Up
+#             ((256, 128, 128), (256, )),  # Block
+#             ((128, 256, 256), (256, )),  # Block Up
+#             ((128, 256, 256), (256, )),  # Block
+#             ((128, 512, 512), (256, )),  # Block Up
+#             ((3, 512, 512), ()),  # Final Conv
+#         ]
+        
+        # end can be 0 to 13
         self.input_shapes = [
             ((128, ), (128, )),  # Raw input shape
             ((2048, 4, 4), (256, )),  # Linear
@@ -106,17 +132,13 @@ class BigGanSkip(nn.Module):
             ((2048, 8, 8), (256, )),  # Block
             ((1024, 16, 16), (256, )),  # Block Up
             ((1024, 16, 16), (256, )),  # Block
-            ((1024, 32, 32), (256, )),  # Block Up
-            ((1024, 32, 32), (256, )),  # Block
-            ((512, 64, 64), (256, )),  # Block Up
-            ((512, 64, 64), (256, )),  # Self-Attention block
-            ((512, 64, 64), (256, )),  # Block
-            ((256, 128, 128), (256, )),  # Block Up
-            ((256, 128, 128), (256, )),  # Block
-            ((128, 256, 256), (256, )),  # Block Up
-            ((128, 256, 256), (256, )),  # Block
-            ((128, 512, 512), (256, )),  # Block Up
-            ((3, 512, 512), ()),  # Final Conv
+            ((512, 32, 32), (256, )),  # Block Up
+            ((512, 32, 32), (256, )),  # Block
+            ((256, 64, 64), (256, )),  # Block Up
+            ((256, 64, 64), (256, )),  # Self-Attention block
+            ((256, 64, 64), (256, )),  # Block
+            ((128, 128, 128), (256, )),  # Block Up
+            ((3, 128, 128), ()),  # Final Conv
         ]
         # self._check_input_shapes()
     

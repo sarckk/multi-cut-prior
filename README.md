@@ -1,9 +1,17 @@
 ```python
-python run_experiments.py --img_dir ./images/ood-examples/ --img_name surfer.jpg  --model mgan_biggan_inv --run_dir mgan_biggan_inv --run_name mgan_biggan_inv_surfer --first_cut 7 --second_cut 15
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name building.jpg  --model mgan_biggan_inv --run_dir mgan_biggan_inv --run_name mgan_biggan_inv --first_cut 4 --second_cut 13
 ```
 
 ```python
-python run_experiments.py --img_dir ./images/ood-examples/ --img_name surfer.jpg --model began_inv --run_dir began_inv --run_name began_inv_surfer_norestart --overwrite
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name building.jpg --model biggan_inv --run_dir biggan_inv --run_name biggan_inv_building --overwrite
+```
+
+```python
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name 000000072758.jpg  --model mgan_began_inv --run_dir mgan_began_inv --run_name mgan_began_inv_000000072758_norestart --first_cut 3 --second_cut 15 --use_tv_loss
+```
+
+```python
+python run_experiments.py --img_dir ./images/ood-examples/ --img_name elephant.jpg --model began_inv --run_dir began_inv --run_name began_inv_elephant_norestart
 ```
 
 # List of best runs by PSNR

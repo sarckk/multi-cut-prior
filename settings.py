@@ -1,27 +1,12 @@
 """Experiment Settings"""
-n_measure_64 = [100, 200, 300, 400, 600, 1000, 2000, 3000, 4000, 6000]
-n_measure_128 = [400, 800, 1200, 1600, 2400, 4000, 8000, 12000, 16000, 24000]
 
 forward_models = {
-    'began_inv': {
+    'biggan_inv': {
         'InpaintingSquare': [{
             'mask_size': 32
         }],
-#         'InpaintingScatter': [{
-#             'fraction_kept': 0.1
-#         }],
-#         'SuperResolution': [{
-#             'scale_factor': 0.25,
-#             'mode': 'bilinear',
-#             'align_corners': True
-#         }],
-    },
-    'biggan_inv': {
-        'InpaintingSquare': [{
-            'mask_size': 256
-        }],
         'InpaintingScatter': [{
-            'fraction_kept': 0.1
+            'fraction_kept': 0.05
         }],
         'SuperResolution': [{
             'scale_factor': 0.25,
@@ -31,10 +16,10 @@ forward_models = {
     },
     'mgan_biggan_inv': {
         'InpaintingSquare': [{
-            'mask_size': 256
+            'mask_size': 32
         }],
         'InpaintingScatter': [{
-            'fraction_kept': 0.1
+            'fraction_kept': 0.05
         }],
         'SuperResolution': [{
             'scale_factor': 0.25,
@@ -52,6 +37,19 @@ forward_models = {
             'mask_size': 14
         }],
     },
+    'began_inv': {
+        'InpaintingSquare': [{
+            'mask_size': 32
+        }],
+        'InpaintingScatter': [{
+            'fraction_kept': 0.1
+        }],
+        'SuperResolution': [{
+            'scale_factor': 0.25,
+            'mode': 'bilinear',
+            'align_corners': True
+        }],
+    },
     'mgan_began_inv': {
         'InpaintingSquare': [{
             'mask_size': 32
@@ -67,28 +65,15 @@ forward_models = {
     },
 }
 
-baseline_settings = {
-    'lasso-dct-64': {
-        'img_size': 64,
-        'lasso_coeff': [0.01] * len(n_measure_64),
-        'n_measure': n_measure_64,
-    },
-    'lasso-dct-128': {
-        'img_size': 128,
-        'lasso_coeff': [0.01] * len(n_measure_128),
-        'n_measure': n_measure_128,
-    },
-}
-
 recovery_settings = {
     'biggan_inv': {
         'optimizer': 'lbfgs',
         'n_steps': 25,
-        'z_lr': 1.5,
+        'z_lr': 1,
         'z_init_mode': ['clamped_normal'],
         'limit': [1],
         'restarts': 3,
-        'n_cuts_list': [0, 7],
+        'n_cuts_list': [6,7],
     },
     'dcgan_inv': {
         'optimizer': 'lbfgs',
@@ -131,16 +116,16 @@ recovery_settings = {
     },
     'began_inv': {
         'optimizer': 'lbfgs',
-        'n_steps': 120,
+        'n_steps': 60,
         'z_lr': 0.8,
         'z_init_mode': ['clamped_normal'],
         'restarts': 1,
-        'n_cuts_list': [1,2],
+        'n_cuts_list': [0,2],
         'limit': [1],
     },
     'mgan_began_inv': {
         'optimizer': 'lbfgs',
-        'n_steps': 120,
+        'n_steps': 60,
         'z_lr': 0.8,
         'z_init_mode': ['clamped_normal'],
         'limit': [1],
@@ -150,12 +135,12 @@ recovery_settings = {
     },
      'mgan_biggan_inv': {
         'optimizer': 'lbfgs',
-        'n_steps': 25,
-        'z_lr': 1.5,
+        'n_steps': 40,
+        'z_lr': 1,
         'z_init_mode': ['clamped_normal'],
         'limit': [1],
         'z_number': 20,
-        'restarts': 3,
+        'restarts': 1,
 #         'cuts': [[1,6],[1,14],[3,6],[3,14],[5,6],[5,14],[7,10],[7,14],[8,15],[9,15]]
     },
     

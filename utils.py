@@ -433,5 +433,5 @@ def load_pretrained_began_disc(state_dict):
 
 
 if __name__ == '__main__':
-    parse_results_folder('./final_runs/results')
-    parse_baseline_results_folder('./final_runs/baseline_results')
+    parse_results_folder('./runs/results')
+    # parse_baseline_results_folder('./final_runs/baseline_results')
