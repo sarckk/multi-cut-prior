@@ -12,3 +12,4 @@ tqdm
 seaborn
 pytorch_lightning
 wandb
+hydra-core

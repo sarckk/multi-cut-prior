@@ -1,5 +1,28 @@
 """Experiment Settings"""
 
+began_experiments = {
+    'InpaintingSquare': [{
+        'mask_size': 32
+    }],
+    'InpaintingScatter': [{
+        'fraction_kept': 0.1
+    }],
+    'SuperResolution': [{
+        'scale_factor': 0.25,
+        'mode': 'bilinear',
+        'align_corners': True
+    }],
+}
+
+began_shared_settings = {
+    'optimizer': 'lbfgs',
+    'n_steps': 60,
+    'z_lr': 0.8,
+    'z_init_mode': ['clamped_normal'],
+    'restarts': 1,
+    'limit': [1],
+}
+
 forward_models = {
     'biggan_inv': {
         'InpaintingSquare': [{
@@ -37,32 +60,8 @@ forward_models = {
             'mask_size': 14
         }],
     },
-    'began_inv': {
-        'InpaintingSquare': [{
-            'mask_size': 32
-        }],
-        'InpaintingScatter': [{
-            'fraction_kept': 0.1
-        }],
-        'SuperResolution': [{
-            'scale_factor': 0.25,
-            'mode': 'bilinear',
-            'align_corners': True
-        }],
-    },
-    'mgan_began_inv': {
-        'InpaintingSquare': [{
-            'mask_size': 32
-        }],
-#         'InpaintingScatter': [{
-#             'fraction_kept': 0.1
-#         }],
-#         'SuperResolution': [{
-#             'scale_factor': 0.25,
-#             'mode': 'bilinear',
-#             'align_corners': True
-#         }],
-    },
+    'began_inv': began_experiments,
+    'mgan_began_inv': began_experiments,
 }
 
 recovery_settings = {
@@ -84,27 +83,6 @@ recovery_settings = {
         'n_cuts_list': [1],
         'limit': [1],
     },
-    'vanilla_vae_inv': {
-        'optimizer': 'lbfgs',
-        'n_steps': 25,
-        'z_lr': 1,
-        'z_init_mode': ['clamped_normal'],
-        'restarts': 3,
-        'n_cuts_list': [0, 1],
-        'limit': [1],
-    },
-    'iagan_dcgan_inv': {
-        'optimizer': 'adam',
-        'z_init_mode': ['clamped_normal'],
-        'z_steps1': 1600,
-        'z_steps2': 1200,
-        'z_lr1': 0.1,
-        'z_lr2': 1e-4,
-        'model_lr': 1e-4,
-        'restarts': 3,
-        'n_cuts_list': [0,1],
-        'limit': [1],
-    },
     'mgan_dcgan_inv': {
         'optimizer': 'adam',
         'n_steps': 5000,
@@ -115,23 +93,12 @@ recovery_settings = {
         'restarts': 3,
     },
     'began_inv': {
-        'optimizer': 'lbfgs',
-        'n_steps': 60,
-        'z_lr': 0.8,
-        'z_init_mode': ['clamped_normal'],
-        'restarts': 1,
-        'n_cuts_list': [0,2],
-        'limit': [1],
+        **began_shared_settings,
+        'n_cuts_list': [0,1,2,3],
     },
     'mgan_began_inv': {
-        'optimizer': 'lbfgs',
-        'n_steps': 60,
-        'z_lr': 0.8,
-        'z_init_mode': ['clamped_normal'],
-        'limit': [1],
-        'z_number': 30,
-        'restarts': 1,
-#         'cuts': [[1,13], [1,14], [1,15], [2,6],[2,9],[2,11],[2,15], [3,9],[3,15],[4,9],[4,15]]
+        **began_shared_settings,
+#       'cuts': [[1,13], [1,14], [1,15], [2,6],[2,9],[2,11],[2,15], [3,9],[3,15],[4,9],[4,15]]
     },
      'mgan_biggan_inv': {
         'optimizer': 'lbfgs',

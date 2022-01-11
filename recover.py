@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
 from utils import (get_z_vector, load_target_image, load_trained_net, psnr, psnr_from_mse)
+import wandb
 
 warnings.filterwarnings("ignore")
 
@@ -36,6 +37,7 @@ def _recover(x,
              restart_idx=0,
              disable_tqdm=False,
              tv_weight=0.0,
+             disable_wandb=False,
              **kwargs):
 
     uses_multicode = (second_cut is not None and z_number != -1)
@@ -158,13 +160,13 @@ def _recover(x,
             if forward_model.inverse:
                 # only true for square inpainting 
                 writer.add_image('ORIG_MASKED', y_masked_part.clamp(0,1).squeeze(0), global_idx)
-                writer.add_image('RECOVERED_MASKED', forward_model.inverse(x_hats.detach().clamp(0,1)).squeeze(0), global_idx)
                 writer.add_scalar('ORIG_PSNR_ONLY_MASKED', psnr_from_mse(masked_mse_clamped), global_idx)
 
             
             if j % save_img_every_n == 0:
                 writer.add_image('Recovered',
                                  x_hats.clamp(0, 1).squeeze(0), global_idx)
+
 
         if scheduler_z is not None:
             scheduler_z.step()
@@ -187,22 +189,17 @@ def recover(x,
             z_lr=0.5,
             n_steps=2000,
             restarts=1,
-            run_dir=None,
-            run_name=None,
+            logdir=None,
             disable_tqdm=False,
             tv_weight=0.0,
+            disable_wandb=False,
             **kwargs):
 
     best_psnr = -float("inf")
     best_return_val = None
     
-    writer = None
-    if run_name is not None:
-        logdir = os.path.join('recovery_tensorboard_logs', run_dir, run_name)
-        if os.path.exists(logdir):
-            print("Overwriting pre-existing logs!")
-            shutil.rmtree(logdir)
-        writer = SummaryWriter(logdir)
+    print("tensorboard logdir: ", logdir)
+    writer = SummaryWriter(logdir)
 
     # Save original and distorted image
     if writer is not None:
@@ -229,6 +226,7 @@ def recover(x,
                               restart_idx = i,
                               disable_tqdm=disable_tqdm,
                               tv_weight=tv_weight,
+                              disable_wandb=disable_wandb,
                               **kwargs)
 
         p = psnr_from_mse(return_val[2])
@@ -242,6 +240,7 @@ def recover(x,
             
     if writer is not None:
         writer.add_image('Best recovered', best_return_val[0])
-        
+    
+    writer.close()
     return best_return_val
 
