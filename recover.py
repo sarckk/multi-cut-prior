@@ -240,6 +240,9 @@ def recover(x,
             
     if writer is not None:
         writer.add_image('Best recovered', best_return_val[0])
+        if best_return_val[3] is not None:
+            # there is a masked inverse part
+            wandb.run.summary['best_masked_psnr'] = psnr_from_mse(best_return_val[3])
     
     writer.close()
     return best_return_val

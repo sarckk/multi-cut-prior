@@ -19,6 +19,7 @@ from utils import (dict_to_str, get_images_folder,
 import wandb
 import hydra
 from omegaconf import DictConfig, OmegaConf
+from skimage.metrics import structural_similarity
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -71,6 +72,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
 
                 f_args['img_shape'] = img_shape
                 forward_model = get_forward_model(f, **f_args)
+                del (f_args['img_shape'])
 
                 for z_init_mode, limit in zip(
                         tqdm(z_init_mode_list,
@@ -115,7 +117,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     if not args.disable_wandb:
                         # wandb.tensorboard.patch(root_logdir=logdir)
                         wandb_run = wandb.init(
-                            project="gen-surgery-multicode", 
+                            project="gen-surgery-multicode-version-2", 
                             group=f + ', ' + dict_to_str(f_args),
                             name=current_run_name, 
                             tags=[args.model, data_split, "coco2017", f],
@@ -124,6 +126,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                             save_code=True,
                             sync_tensorboard=True
                         )
+                       
 
                     recovered_img, distorted_img, _, masked_mse = recover(
                         orig_img, gen, metadata['optimizer'], 
@@ -135,6 +138,11 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                         metadata['restarts'], logdir, args.disable_tqdm, 
                         args.tv_weight, args.disable_wandb
                     )
+                     
+                    p = psnr(recovered_img, orig_img)
+                    wandb.run.summary['best_origin_psnr'] = p
+                    ssim = structural_similarity(recovered_img.cpu().numpy(), orig_img.cpu().numpy(), channel_axis=0, data_range=1.0)
+                    wandb.run.summary['best_origin_ssim'] = ssim
 
                     if not args.disable_wandb:
                         wandb_run.finish()
@@ -162,8 +170,8 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
 
                     pickle.dump(metadata, open(results_folder / 'metadata.pkl', 'wb'))
 
-                    p = psnr(recovered_img, orig_img)
                     pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
+                    pickle.dump(ssim, open(results_folder / 'ssim.pkl', 'wb'))
 
                     if masked_mse is not None:
                         # only here if inpainting square 
@@ -186,8 +194,7 @@ def gan_images(args, metadata):
                        desc='N_cuts',
                        leave=False,
                        disable=args.disable_tqdm):
-        metadata['first_cut'] = first_cut  
-        metadata['second_cut'] = None # invalid 
+        metadata['cut'] = f'{first_cut},-1'
 
         restore(z_init_mode_list, limit_list, args, metadata, -1, first_cut, second_cut=None)
         
@@ -200,8 +207,9 @@ def mgan_images(args, metadata):
     del (metadata['limit'])
     
     # extra processing of metadata
-    metadata['first_cut'] = first_cut = args.first_cut
-    metadata['second_cut'] = second_cut = args.second_cut
+    first_cut = args.first_cut
+    second_cut = args.second_cut
+    metadata['cut'] = f'{first_cut},{second_cut}'
     print(f"===> Testing out combination: [{first_cut}, {second_cut}]")
     
     z_number = metadata['z_number']

@@ -13,3 +13,4 @@ seaborn
 pytorch_lightning
 wandb
 hydra-core
+scikit-image

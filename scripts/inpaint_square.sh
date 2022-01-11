@@ -11,3 +11,5 @@ python run_experiments.py \
 --model began_inv \
 --tv_weight 1e-8 \
 --overwrite
+
+python run_experiments.py --img_dir ./images/ood-examples --model began_inv --tv_weight 1e-8 --overwrite 

@@ -191,7 +191,7 @@ class InpaintingScatter(ForwardModel):
 
 
 # New code
-def rand_rect_mask(img_shape, mask_shape, device=None): 
+def rand_rect_mask(img_shape, mask_shape, center_mask=True, device=None): 
     """
     For image of shape CHW, returns random boolean
     mask of the same shape with random rectangular mask removed
@@ -207,9 +207,11 @@ def rand_rect_mask(img_shape, mask_shape, device=None):
 #     x0 = np.random.randint(img_w - mask_w + 1) 
     y0 = img_h // 2
     x0 = img_w // 2
-
-    #. mask[:, y0 - mask_h//2 : y0 + mask_h//2, x0 - mask_w//2 : x0 + mask_w//2] = 0
-    mask[:, y0: y0 + mask_h, x0: x0 + mask_w] = 0
+    
+    if center_mask:
+        mask[:, y0 - mask_h//2 : y0 + mask_h//2, x0 - mask_w//2 : x0 + mask_w//2] = 0
+    else:
+        mask[:, y0: y0 + mask_h, x0: x0 + mask_w] = 0
     
     return mask
 
@@ -220,13 +222,13 @@ class InpaintingSquare(ForwardModel):
     viewable = True
     inverse = True
 
-    def __init__(self, img_shape, mask_size, device=DEFAULT_DEVICE):
+    def __init__(self, img_shape, mask_size, center = True, device=DEFAULT_DEVICE):
         """
         img_shape - 3 x H x W
         fraction_kept - number in [0, 1], what portion of pixels to retain
         """
         self.mask_size = mask_size
-        self.A = rand_rect_mask(img_shape, mask_shape=(mask_size,mask_size)).to(device)
+        self.A = rand_rect_mask(img_shape, mask_shape=(mask_size,mask_size), center_mask=center).to(device)
 
     def __call__(self, img):
         return self.A[None, ...] * img

@@ -2,24 +2,28 @@
 
 began_experiments = {
     'InpaintingSquare': [{
-        'mask_size': 32
+        'mask_size': 30,
+        'center': True,
+    }, {
+        'mask_size': 30,
+        'center': False,
     }],
-    'InpaintingScatter': [{
-        'fraction_kept': 0.1
-    }],
-    'SuperResolution': [{
-        'scale_factor': 0.25,
-        'mode': 'bilinear',
-        'align_corners': True
-    }],
+#     'InpaintingScatter': [{
+#         'fraction_kept': 0.1
+#     }],
+#     'SuperResolution': [{
+#         'scale_factor': 0.25,
+#         'mode': 'bilinear',
+#         'align_corners': True
+#     }],
 }
 
 began_shared_settings = {
     'optimizer': 'lbfgs',
-    'n_steps': 60,
-    'z_lr': 0.8,
+    'n_steps': 25,
+    'z_lr': 1,
     'z_init_mode': ['clamped_normal'],
-    'restarts': 1,
+    'restarts': 2,
     'limit': [1],
 }
 
@@ -98,6 +102,7 @@ recovery_settings = {
     },
     'mgan_began_inv': {
         **began_shared_settings,
+        'z_number' :20,
 #       'cuts': [[1,13], [1,14], [1,15], [2,6],[2,9],[2,11],[2,15], [3,9],[3,15],[4,9],[4,15]]
     },
      'mgan_biggan_inv': {

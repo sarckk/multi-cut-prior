@@ -7,11 +7,15 @@ python run_experiments.py --img_dir ./images/ood-examples/ --img_name building.j
 ```
 
 ```python
-python run_experiments.py --img_dir ./images/ood-examples/ --img_name 000000072758.jpg  --model mgan_began_inv --run_dir mgan_began_inv --run_name mgan_began_inv_000000072758_norestart --first_cut 3 --second_cut 15 --use_tv_loss
+python run_experiments.py --img_dir ./images/ood-examples --model began_inv --tv_weight 1e-8 --overwrite 
 ```
 
+Experiments to run:
 ```python
-python run_experiments.py --img_dir ./images/ood-examples/ --img_name elephant.jpg --model began_inv --run_dir began_inv --run_name began_inv_elephant_norestart
+python run_experiments.py --img_dir ./images/ood-examples --model began_inv --tv_weight 1e-8 --overwrite 
+python run_experiments.py --img_dir ./images/ood-examples --model mgan_began_inv --first_cut 0 --second_cut 15 --tv_weight 1e-8 --overwrite
+python run_experiments.py --img_dir ./images/ood-examples --model mgan_began_inv --first_cut 1 --second_cut 15 --tv_weight 1e-8 --overwrite
+python run_experiments.py --img_dir ./images/ood-examples --model mgan_began_inv --first_cut 3 --second_cut 15 --tv_weight 1e-8 --overwrite
 ```
 
 # List of best runs by PSNR
