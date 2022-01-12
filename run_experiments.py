@@ -81,6 +81,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     metadata['z_init_mode'] = z_init_mode
                     metadata['limit'] = limit
                     metadata['tv_weight'] = args.tv_weight
+                    metadata['img'] = img_basename
 
                     # Before doing recovery, check if results already exist and possibly skip
                     recovered_name = 'recovered.pt'
@@ -90,7 +91,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                         n_cuts=first_cut if second_cut is None else str([first_cut, second_cut]),
                         split=data_split,
                         forward_model=forward_model,
-                        recovery_params=dict_to_str(metadata),
+                        recovery_params=dict_to_str(metadata, exclude='img'),
                         base_dir=BASE_DIR)
 
                     os.makedirs(results_folder, exist_ok=True)
@@ -102,7 +103,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
 
                     current_run_name = (
                         f'{img_basename}.{forward_model}'
-                        f'.{dict_to_str(metadata)}')
+                        f'.{dict_to_str(metadata, exclude='img')}')
 
                     if args.run_name is not None:
                         current_run_name = current_run_name + f'.{args.run_name}'
@@ -117,7 +118,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     if not args.disable_wandb:
                         # wandb.tensorboard.patch(root_logdir=logdir)
                         wandb_run = wandb.init(
-                            project="restart", 
+                            project="FINALIZED_VERSION", 
                             group=f + ', ' + dict_to_str(f_args),
                             name=current_run_name, 
                             tags=[args.model, data_split, "coco2017", f],
@@ -188,16 +189,14 @@ def gan_images(args, metadata):
     del (metadata['limit'])
     
     # extra processing of metadata
-    n_cuts_list = metadata['n_cuts_list']
-    del (metadata['n_cuts_list'])
+#     n_cuts_list = metadata['n_cuts_list']
+#     del (metadata['n_cuts_list'])
+    
+    first_cut = args.first_cut
+    metadata['cut'] = f'{first_cut},-1'
+    print(f"===> Testing out combination: [{metadata['cut']}]")
 
-    for first_cut in tqdm(n_cuts_list,
-                       desc='N_cuts',
-                       leave=False,
-                       disable=args.disable_tqdm):
-        metadata['cut'] = f'{first_cut},-1'
-
-        restore(z_init_mode_list, limit_list, args, metadata, -1, first_cut, second_cut=None)
+    restore(z_init_mode_list, limit_list, args, metadata, -1, first_cut, second_cut=None)
         
         
 def mgan_images(args, metadata):
@@ -211,7 +210,7 @@ def mgan_images(args, metadata):
     first_cut = args.first_cut
     second_cut = args.second_cut
     metadata['cut'] = f'{first_cut},{second_cut}'
-    print(f"===> Testing out combination: [{first_cut}, {second_cut}]")
+    print(f"===> Testing out combination: [{metadata['cut']}]")
     
     z_number = metadata['z_number']
     

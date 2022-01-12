@@ -18,9 +18,11 @@ def print_torchvec(x):
     return ','.join([f'{i:0.3f}' for i in x.tolist()])
 
 
-def dict_to_str(d):
+def dict_to_str(d, exclude=None):
     s = []
     for k, v in d.items():
+        if exclude is not None and k == exclude:
+            continue
         s.append(f"{k}={v}")
     return ".".join(s)
 

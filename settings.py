@@ -1,31 +1,28 @@
 """Experiment Settings"""
 
+# other inpainting candidates: 4129
 began_experiments = {
     'InpaintingIrregular': [{
-        'mask_name': '03435.png'
+        'mask_name': '04244.png'
     }, {
         'mask_name': '03437.png'
     }],
-#     'InpaintingSquare': [{
-#         'mask_size': 25,
-#         'center': True,
-#     }],
-#     'InpaintingScatter': [{
-#         'fraction_kept': 0.1
-#     }],
-#     'SuperResolution': [{
-#         'scale_factor': 0.25,
-#         'mode': 'bilinear',
-#         'align_corners': True
-#     }],
+    'InpaintingScatter': [{
+        'fraction_kept': 0.1
+    }],
+    'SuperResolution': [{
+        'scale_factor': 0.25,
+        'mode': 'bilinear',
+        'align_corners': True
+    }],
 }
 
 began_shared_settings = {
     'optimizer': 'lbfgs',
-    'n_steps': 25,
+    'n_steps': 40,
     'z_lr': 1,
     'z_init_mode': ['clamped_normal'],
-    'restarts': 2,
+    'restarts': 1,
     'limit': [1],
 }
 

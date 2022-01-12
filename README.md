@@ -12,7 +12,10 @@ python run_experiments.py --img_dir ./images/ood-examples --model began_inv --tv
 
 Experiments to run:
 ```python
-python run_experiments.py --img_dir ./images/ood-examples --model began_inv --tv_weight 1e-8 --overwrite 
+python run_experiments.py --img_dir ./images/ood-examples --model began_inv --first_cut 0 --tv_weight 1e-8 --overwrite 
+python run_experiments.py --img_dir ./images/ood-examples --model began_inv --first_cut 1 --tv_weight 1e-8 --overwrite 
+python run_experiments.py --img_dir ./images/ood-examples --model began_inv --first_cut 3 --tv_weight 1e-8 --overwrite 
+
 python run_experiments.py --img_dir ./images/ood-examples --model mgan_began_inv --first_cut 0 --second_cut 15 --tv_weight 1e-8 --overwrite
 python run_experiments.py --img_dir ./images/ood-examples --model mgan_began_inv --first_cut 1 --second_cut 15 --tv_weight 1e-8 --overwrite
 python run_experiments.py --img_dir ./images/ood-examples --model mgan_began_inv --first_cut 3 --second_cut 15 --tv_weight 1e-8 --overwrite
