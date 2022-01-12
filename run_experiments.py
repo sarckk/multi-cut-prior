@@ -119,7 +119,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     if not args.disable_wandb:
                         # wandb.tensorboard.patch(root_logdir=logdir)
                         wandb_run = wandb.init(
-                            project="FINALIZED_VERSION_FIXED", 
+                            project="ENTER-NAME-HERE", 
                             group=f + ', ' + dict_to_str(f_args),
                             name=current_run_name, 
                             tags=[args.model, data_split, "coco2017", f],
