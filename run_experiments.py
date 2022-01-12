@@ -3,7 +3,7 @@ import os
 import pickle
 from pathlib import Path
 import shutil
-
+import time
 import numpy as np
 import torch
 from tqdm import tqdm
@@ -51,24 +51,24 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
     
     forwards = forward_models[args.model]
     
-    for img_name in tqdm(sorted(os.listdir(args.img_dir)),
-                         desc='Images',
-                         leave=True,
-                         disable=args.disable_tqdm):
-  
-        orig_img = load_target_image(os.path.join(args.img_dir, img_name), img_size).to(DEVICE)
-        img_basename, _ = os.path.splitext(img_name)
-        print("==> Restoring image: ", img_name)
+    for i, (f, f_args_list) in enumerate(
+                            tqdm(forwards.items(),
+                                 desc='Forwards',
+                                 leave=False,
+                                 disable=args.disable_tqdm)):
+        for f_args in tqdm(f_args_list,
+                           desc=f'{f} Args',
+                           leave=False,
+                           disable=args.disable_tqdm):
 
-        for i, (f, f_args_list) in enumerate(
-                                tqdm(forwards.items(),
-                                     desc='Forwards',
-                                     leave=False,
-                                     disable=args.disable_tqdm)):
-            for f_args in tqdm(f_args_list,
-                               desc=f'{f} Args',
-                               leave=False,
-                               disable=args.disable_tqdm):
+            for img_name in tqdm(sorted(os.listdir(args.img_dir)),
+                 desc='Images',
+                 leave=True,
+                 disable=args.disable_tqdm):
+
+                orig_img = load_target_image(os.path.join(args.img_dir, img_name), img_size).to(DEVICE)
+                img_basename, _ = os.path.splitext(img_name)
+                print("==> Restoring image: ", img_name)
 
                 f_args['img_shape'] = img_shape
                 forward_model = get_forward_model(f, **f_args)
@@ -117,7 +117,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     if not args.disable_wandb:
                         # wandb.tensorboard.patch(root_logdir=logdir)
                         wandb_run = wandb.init(
-                            project="gen-surgery-multicode-version-2", 
+                            project="restart", 
                             group=f + ', ' + dict_to_str(f_args),
                             name=current_run_name, 
                             tags=[args.model, data_split, "coco2017", f],
@@ -126,8 +126,8 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                             save_code=True,
                             sync_tensorboard=True
                         )
-                       
 
+                    start = time.time()
                     recovered_img, distorted_img, _, masked_mse = recover(
                         orig_img, gen, metadata['optimizer'], 
                         first_cut,
@@ -138,11 +138,13 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                         metadata['restarts'], logdir, args.disable_tqdm, 
                         args.tv_weight, args.disable_wandb
                     )
-                     
+                    time_taken = time.time() - start
+
                     p = psnr(recovered_img, orig_img)
                     wandb.run.summary['best_origin_psnr'] = p
                     ssim = structural_similarity(recovered_img.cpu().numpy(), orig_img.cpu().numpy(), channel_axis=0, data_range=1.0)
                     wandb.run.summary['best_origin_ssim'] = ssim
+                    wandb.run.summary['time_taken'] = time_taken
 
                     if not args.disable_wandb:
                         wandb_run.finish()
@@ -169,7 +171,6 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     torch.save(recovered_img, recovered_path) # results_folder/ recovered.pt
 
                     pickle.dump(metadata, open(results_folder / 'metadata.pkl', 'wb'))
-
                     pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
                     pickle.dump(ssim, open(results_folder / 'ssim.pkl', 'wb'))
 

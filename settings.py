@@ -1,13 +1,15 @@
 """Experiment Settings"""
 
 began_experiments = {
-    'InpaintingSquare': [{
-        'mask_size': 30,
-        'center': True,
+    'InpaintingIrregular': [{
+        'mask_name': '03435.png'
     }, {
-        'mask_size': 30,
-        'center': False,
+        'mask_name': '03437.png'
     }],
+#     'InpaintingSquare': [{
+#         'mask_size': 25,
+#         'center': True,
+#     }],
 #     'InpaintingScatter': [{
 #         'fraction_kept': 0.1
 #     }],
@@ -98,7 +100,7 @@ recovery_settings = {
     },
     'began_inv': {
         **began_shared_settings,
-        'n_cuts_list': [0,1,2,3],
+#         'n_cuts_list': [1,3],
     },
     'mgan_began_inv': {
         **began_shared_settings,

@@ -229,21 +229,21 @@ def recover(x,
                               disable_wandb=disable_wandb,
                               **kwargs)
 
-        p = psnr_from_mse(return_val[2])
-        if math.isnan(p):
-            print(f"\n Restart [{i}]: nan value of psnr found, train_mse_clamped is {return_val[2]}")
-        # sometimes p is nan here -> why?
-        if p > best_psnr:
-            best_psnr = p
-            best_return_val = return_val
+#         p = psnr_from_mse(return_val[2])
+#         if math.isnan(p):
+#             print(f"\n Restart [{i}]: nan value of psnr found, train_mse_clamped is {return_val[2]}")
+#         # sometimes p is nan here -> why?
+#         if p > best_psnr:
+#             best_psnr = p
+#             best_return_val = return_val
 
             
     if writer is not None:
-        writer.add_image('Best recovered', best_return_val[0])
-        if best_return_val[3] is not None:
+        writer.add_image('Best recovered', return_val[0])
+        if return_val[3] is not None:
             # there is a masked inverse part
-            wandb.run.summary['best_masked_psnr'] = psnr_from_mse(best_return_val[3])
+            wandb.run.summary['best_masked_psnr'] = psnr_from_mse(return_val[3])
     
     writer.close()
-    return best_return_val
+    return return_val
 

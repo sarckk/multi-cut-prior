@@ -8,10 +8,11 @@ import math
 import sys
 from abc import ABC, abstractmethod
 from typing import Tuple
-
+import os
 import numpy as np
 import torch
 import torch.nn.functional as F
+from utils import load_target_image
 
 DEFAULT_DEVICE = 'cuda:0'
 
@@ -228,6 +229,7 @@ class InpaintingSquare(ForwardModel):
         fraction_kept - number in [0, 1], what portion of pixels to retain
         """
         self.mask_size = mask_size
+        self.center = center
         self.A = rand_rect_mask(img_shape, mask_shape=(mask_size,mask_size), center_mask=center).to(device)
 
     def __call__(self, img):
@@ -237,7 +239,32 @@ class InpaintingSquare(ForwardModel):
         return (1.0 - self.A[None, ...]) * img
 
     def __str__(self):
-        return f'InpaintingSquare.mask_size={self.mask_size}'
+        return f'InpaintingSquare.mask_size={self.mask_size}.center={self.center}'
+
+    
+class InpaintingIrregular(ForwardModel):
+    """
+    Mask rectangular pixels
+    """
+    viewable = True
+    inverse = True
+
+    def __init__(self, img_shape, mask_name, device=DEFAULT_DEVICE):
+        """
+        img_shape - 3 x H x W
+        fraction_kept - number in [0, 1], what portion of pixels to retain
+        """    
+        self.mask_name = mask_name
+        self.A = torch.abs(load_target_image(os.path.join('./images/mask/testing_mask_dataset', mask_name), img_shape[2]).to(device) - 1.0)
+        
+    def __call__(self, img):
+        return self.A[None, ...] * img
+    
+    def inverse(self, img):
+        return (1.0 - self.A[None, ...]) * img
+
+    def __str__(self):
+        return f'InpaintingIrregular.name={self.mask_name}'
 
 #
 
