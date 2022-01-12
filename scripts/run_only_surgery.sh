@@ -9,5 +9,5 @@
 for i in 0 1 3 ;     ### Outer for loop ###
     do
         echo "$i"
-        python run_experiments.py --img_dir ./images/ood-examples --model began_inv --first_cut $i --tv_weight 1e-8 --overwrite 
+        python run_experiments.py --img_dir ./images/ood-examples --model began_inv --first_cut $i --tv_weight 1e-8 --overwrite
     done

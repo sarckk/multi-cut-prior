@@ -128,7 +128,7 @@ def _recover(x,
          
             loss = train_mse + tv_loss
             loss.backward()
-            return train_mse
+            return loss
 
         
         optimizer_z.step(closure)
@@ -247,3 +247,10 @@ def recover(x,
     writer.close()
     return best_return_val
 
+
+
+if __name__ == '__main__':
+    print("testing...")
+    # save images of inverse 
+    
+    # check 

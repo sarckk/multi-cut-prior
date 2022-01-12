@@ -255,7 +255,9 @@ class InpaintingIrregular(ForwardModel):
         fraction_kept - number in [0, 1], what portion of pixels to retain
         """    
         self.mask_name = mask_name
-        self.A = torch.abs(load_target_image(os.path.join('./images/mask/testing_mask_dataset', mask_name), img_shape[2]).to(device) - 1.0)
+        mask = load_target_image(os.path.join('./images/mask/testing_mask_dataset', mask_name), img_shape[2]).to(device)
+        mask[mask != 1.0] = 0.0 # fix to 1 and 0
+        self.A = torch.abs(mask - 1.0)
         
     def __call__(self, img):
         return self.A[None, ...] * img

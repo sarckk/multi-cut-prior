@@ -5,7 +5,7 @@ began_experiments = {
     'InpaintingIrregular': [{
         'mask_name': '04244.png'
     }, {
-        'mask_name': '03437.png'
+        'mask_name': '04138.png'
     }],
     'InpaintingScatter': [{
         'fraction_kept': 0.1

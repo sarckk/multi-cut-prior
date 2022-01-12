@@ -84,6 +84,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     metadata['img'] = img_basename
 
                     # Before doing recovery, check if results already exist and possibly skip
+                    metadata_str = dict_to_str(metadata, exclude="img")
                     recovered_name = 'recovered.pt'
                     results_folder = get_results_folder(
                         image_name=img_basename,
@@ -91,7 +92,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                         n_cuts=first_cut if second_cut is None else str([first_cut, second_cut]),
                         split=data_split,
                         forward_model=forward_model,
-                        recovery_params=dict_to_str(metadata, exclude='img'),
+                        recovery_params=metadata_str,
                         base_dir=BASE_DIR)
 
                     os.makedirs(results_folder, exist_ok=True)
@@ -103,7 +104,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
 
                     current_run_name = (
                         f'{img_basename}.{forward_model}'
-                        f'.{dict_to_str(metadata, exclude='img')}')
+                        f'.{metadata_str}')
 
                     if args.run_name is not None:
                         current_run_name = current_run_name + f'.{args.run_name}'
@@ -118,7 +119,7 @@ def restore(z_init_mode_list, limit_list, args, metadata, z_number, first_cut, s
                     if not args.disable_wandb:
                         # wandb.tensorboard.patch(root_logdir=logdir)
                         wandb_run = wandb.init(
-                            project="FINALIZED_VERSION", 
+                            project="FINALIZED_VERSION_FIXED", 
                             group=f + ', ' + dict_to_str(f_args),
                             name=current_run_name, 
                             tags=[args.model, data_split, "coco2017", f],
