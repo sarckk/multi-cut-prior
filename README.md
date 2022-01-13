@@ -39,6 +39,15 @@ python run_experiments.py --img_dir ./images/ood-examples --model mgan_began_inv
 - first=1, second=14 (scatter & square)
 
 
+
+# Source of pretrained models:
+
+DCGAN - https://github.com/Natsu6767/DCGAN-PyTorch
+BEGAN - https://github.com/zhusiling/BEGAN/tree/master/trained_models/128_tanh/models
+
+
+
+
 # Generator Surgery for Compressed Sensing
 by Jung Yeon Park\*, Niklas Smedemark-Margulies\*, Max Daniels, Rose Yu, Jan-Willem van de Meent, and Paul Hand
 
