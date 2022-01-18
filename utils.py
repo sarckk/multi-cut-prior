@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from torch.utils.data import Dataset
 from PIL import Image
 from scipy.stats import truncnorm
 from torchvision import transforms
@@ -154,10 +155,10 @@ def parse_images_folder(p):
 
 
 # Use get_results_folder for all models, use dummy n_cuts if necessary
-def get_results_folder(image_name, model, n_cuts, split, forward_model,
+def get_results_folder(dataset_name, model, n_cuts, split, forward_model,
                        recovery_params, base_dir):
     return (Path(base_dir) / 'results_fixed' / model / f'n_cuts={n_cuts}' / split /
-            image_name / str(forward_model) / recovery_params)
+            dataset_name / str(forward_model) / recovery_params)
 
 
 def parse_results_folder(root='./final_runs/results'):
@@ -431,6 +432,21 @@ def load_pretrained_began_disc(state_dict):
     new_state_dict = _rename_state_dict(old_to_new, state_dict)
     disc.load_state_dict(new_state_dict)
     return disc
+
+
+class ImgDataset(Dataset):
+    def __init__(self, img_dir, img_size):
+        self.img_dir = img_dir
+        self.img_size = img_size
+        self.img_list = sorted(os.listdir(img_dir))
+                               
+    def __len__(self):
+        return len(self.img_list)
+    
+    def __getitem__(self, idx):
+        img_name = self.img_list[idx]
+        return load_target_image(os.path.join(self.img_dir, img_name), self.img_size)
+                            
 ##
 
 

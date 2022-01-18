@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import make_grid
 from tqdm import tqdm, trange
 from utils import (get_z_vector, load_target_image, load_trained_net, psnr, psnr_from_mse)
 import wandb
@@ -21,6 +22,15 @@ def total_variation_loss(c):
     y = c[:,:,:,1:] - c[:,:,:,:-1]
     loss = torch.sum(torch.abs(x)) + torch.sum(torch.abs(y))
     return loss
+
+
+def calc_batch_average(feats, alpha, nc, bs):
+    F_l_2_list = []
+    for k in range(bs):
+        F_l_2 = (feats[k*nc:k*nc+nc] * alpha[k*nc:k*nc+nc, :, None, None]).sum(0,keepdim=True) # nc x h x w 
+        F_l_2_list.append(F_l_2 / nc)
+
+    return torch.cat(F_l_2_list,dim=0) 
 
 def _recover(x,
              gen,
@@ -41,24 +51,24 @@ def _recover(x,
              **kwargs):
 
     uses_multicode = (second_cut is not None and z_number != -1)
+    bs = x.size(0) # batch size
     
-    print(first_cut)
     z1_dim, z1_dim2 = gen.input_shapes[first_cut]
     
-    num_codes = z_number if uses_multicode else 1 
+    nc = z_number if uses_multicode else 1 
     
-    z1 = torch.nn.Parameter(get_z_vector((num_codes, *z1_dim), mode=mode, limit=limit, device=x.device))
+    z1 = torch.nn.Parameter(get_z_vector((bs * nc, *z1_dim), mode=mode, limit=limit, device=x.device))
     params = [z1]
     
     if uses_multicode:
         alpha = torch.nn.Parameter(
-            get_z_vector((z_number, gen.input_shapes[second_cut][0][0]), mode=mode, limit=limit, device=x.device))
+            get_z_vector((bs * nc, gen.input_shapes[second_cut][0][0]), mode=mode, limit=limit, device=x.device))
         params.append(alpha)
     else:
         alpha = None
 
     if len(z1_dim2) > 0:
-        z1_2 = torch.nn.Parameter(get_z_vector((num_codes, *z1_dim2), mode=mode, limit=limit, device=x.device))
+        z1_2 = torch.nn.Parameter(get_z_vector((bs * nc, *z1_dim2), mode=mode, limit=limit, device=x.device))
         params.append(z1_2)
     else:
         z1_2 = None
@@ -66,7 +76,7 @@ def _recover(x,
     if uses_multicode:
         _, z2_dim = gen.input_shapes[second_cut]
         if len(z2_dim) > 0:
-            z2 = torch.nn.Parameter(get_z_vector((1, *z2_dim), mode=mode, limit=limit, device=x.device))
+            z2 = torch.nn.Parameter(get_z_vector((bs, *z2_dim), mode=mode, limit=limit, device=x.device))
             params.append(z2)
         else:
             z2 = None
@@ -97,8 +107,9 @@ def _recover(x,
 
 
     # Recover image under forward model
-    x = x.expand(1, *x.shape)
     y_observed = forward_model(x)
+    print("degraded observation shape: ", y_observed.shape)
+    # y_observed is of dimensions bs x 3 x h x w
     
     if forward_model.inverse:
         y_masked_part = forward_model.inverse(x)
@@ -110,11 +121,18 @@ def _recover(x,
         
         def closure():
             optimizer_z.zero_grad()
-            x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
+            x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs) 
+            
+            # x_hats is of shape (bs x nc) x 3 x h' x w'
+            # for non-multicode (normal BEGAN w/ or w/o GS), nc=1 so x_hats is bs x c x h' x w'
+            
+            
             if uses_multicode:
-                F_l_2 = (x_hats * alpha[:, :, None, None]).sum(0, keepdim=True) / z_number
-                x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
-                
+                F_l_2_batched = calc_batch_average(x_hats, alpha, nc, bs) # bs x c x h' x w'
+                # z2 is also shape bs x c x h' x w'
+                x_hats = gen.forward(F_l_2_batched, z2, n_cuts=second_cut, end=None, **kwargs) # bs x 3 x h x w 
+            
+            
             if gen.rescale:
                 x_hats = (x_hats + 1) / 2
                 
@@ -137,17 +155,20 @@ def _recover(x,
         with torch.no_grad():
             x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
             if uses_multicode:
-                F_l_2 = (x_hats * alpha[:, :, None, None]).sum(0, keepdim=True) / z_number
+                F_l_2 = calc_batch_average(x_hats, alpha, nc, bs)
                 x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
             
             if gen.rescale:
                 x_hats = (x_hats + 1) / 2
-       
-        train_mse_clamped = F.mse_loss(forward_model(x_hats.detach().clamp(0, 1)), y_observed)
-        orig_mse_clamped = F.mse_loss(x_hats.detach().clamp(0, 1), x)
+           
+        
+        print("final image shape: ", x_hats.shape)
+        x_hats_clamp = x_hats.detach().clamp(0, 1) # bs x 3 x h x w
+        train_mse_clamped = F.mse_loss(forward_model(x_hats_clamp), y_observed)
+        orig_mse_clamped = F.mse_loss(x_hats_clamp, x)
         
         if forward_model.inverse:
-            masked_mse_clamped = F.mse_loss(forward_model.inverse(x_hats.detach().clamp(0,1)), y_masked_part)
+            masked_mse_clamped = F.mse_loss(forward_model.inverse(x_hats_clamp), y_masked_part)
         else:
             masked_mse_clamped = None
         
@@ -159,22 +180,19 @@ def _recover(x,
             
             if forward_model.inverse:
                 # only true for square inpainting 
-                writer.add_image('ORIG_MASKED', y_masked_part.clamp(0,1).squeeze(0), global_idx)
+                writer.add_image('ORIG_MASKED', make_grid(y_masked_part.clamp(0,1)), global_idx)
                 writer.add_scalar('ORIG_PSNR_ONLY_MASKED', psnr_from_mse(masked_mse_clamped), global_idx)
-
             
             if j % save_img_every_n == 0:
-                writer.add_image('Recovered',
-                                 x_hats.clamp(0, 1).squeeze(0), global_idx)
-
+                writer.add_image('Recovered', make_grid(x_hats_clamp), global_idx)
 
         if scheduler_z is not None:
             scheduler_z.step()
 
     if writer is not None:
-        writer.add_image('Final', x_hats.clamp(0, 1).squeeze(0), restart_idx)
+        writer.add_image('Final', make_grid(x_hats_clamp), restart_idx)
 
-    return x_hats.clamp(0,1).squeeze(0), forward_model(x)[0], train_mse_clamped, masked_mse_clamped
+    return x_hats_clamp, y_observed, train_mse_clamped, masked_mse_clamped
 
 
 def recover(x,
@@ -198,14 +216,13 @@ def recover(x,
     best_psnr = -float("inf")
     best_return_val = None
     
-    print("tensorboard logdir: ", logdir)
     writer = SummaryWriter(logdir)
 
     # Save original and distorted image
     if writer is not None:
-        writer.add_image("Original/Clamp", x.clamp(0, 1))
+        writer.add_image("Original/Clamp", make_grid(x.clamp(0, 1)))
         if forward_model.viewable:
-            writer.add_image("Distorted/Clamp", forward_model(x.unsqueeze(0).clamp(0, 1)).squeeze(0))
+            writer.add_image("Distorted/Clamp", make_grid(forward_model(x.clamp(0, 1))))
 
     for i in trange(restarts,
                     desc='Restarts',
@@ -239,7 +256,7 @@ def recover(x,
 
             
     if writer is not None:
-        writer.add_image('Best recovered', best_return_val[0])
+        writer.add_image('Best recovered', make_grid(best_return_val))
         if return_val[3] is not None:
             # there is a masked inverse part
             wandb.run.summary['best_masked_psnr'] = psnr_from_mse(best_return_val[3])
