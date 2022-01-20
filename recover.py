@@ -27,6 +27,7 @@ def total_variation_loss(c):
 def calc_batch_average(feats, alpha, nc, bs):
     F_l_2_list = []
     for k in range(bs):
+        # each slice of feats & alpha has requires_grad set true
         F_l_2 = (feats[k*nc:k*nc+nc] * alpha[k*nc:k*nc+nc, :, None, None]).sum(0,keepdim=True) # nc x h x w 
         F_l_2_list.append(F_l_2 / nc)
 
@@ -108,7 +109,7 @@ def _recover(x,
 
     # Recover image under forward model
     y_observed = forward_model(x)
-    print("degraded observation shape: ", y_observed.shape)
+    # print("degraded observation shape: ", y_observed.shape)
     # y_observed is of dimensions bs x 3 x h x w
     
     if forward_model.inverse:
@@ -123,8 +124,8 @@ def _recover(x,
             optimizer_z.zero_grad()
             x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs) 
             
-            # x_hats is of shape (bs x nc) x 3 x h' x w'
-            # for non-multicode (normal BEGAN w/ or w/o GS), nc=1 so x_hats is bs x c x h' x w'
+            # x_hats is of shape (bs x nc) x 3 x h x w
+            # for non-multicode (normal BEGAN w/ or w/o GS), nc=1 so x_hats is bs x c x h x w
             
             
             if uses_multicode:
@@ -135,8 +136,12 @@ def _recover(x,
             
             if gen.rescale:
                 x_hats = (x_hats + 1) / 2
-                
-            train_mse = F.mse_loss(forward_model(x_hats), y_observed)
+               
+            # instead of doing a 'mean' reduction for mse_loss, choose none
+            nonreduc_train_mse = F.mse_loss(forward_model(x_hats), y_observed, reduction='none') # bs x 3 x h x w -> same shape as x_hats
+            train_mse = nonreduc_train_mse.mean(dim=[1,2,3]).mean() # train_mse is a bs-dimensional vector
+            dloss_dbatch = torch.empty(bs).fill_(1.0/bs) # convert to FloatTensor
+            train_mse.backward(dloss_dbatch, retain_graph=True)
             
             if tv_weight != 0.0:
                 tv_loss = tv_weight * total_variation_loss(x_hats)
@@ -162,7 +167,7 @@ def _recover(x,
                 x_hats = (x_hats + 1) / 2
            
         
-        print("final image shape: ", x_hats.shape)
+        # print("final image shape: ", x_hats.shape)
         x_hats_clamp = x_hats.detach().clamp(0, 1) # bs x 3 x h x w
         train_mse_clamped = F.mse_loss(forward_model(x_hats_clamp), y_observed)
         orig_mse_clamped = F.mse_loss(x_hats_clamp, x)
