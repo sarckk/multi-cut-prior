@@ -33,6 +33,34 @@ def calc_batch_average(feats, alpha, nc, bs):
 
     return torch.cat(F_l_2_list,dim=0) 
 
+
+def get_opt(params, z_lr):
+    if optimizer_type == 'sgd':
+        optimizer_z = torch.optim.SGD(params, lr=z_lr)
+        scheduler_z = None
+        save_img_every_n = 50
+    elif optimizer_type == 'adam':
+        optimizer_z = torch.optim.Adam(params, lr=z_lr)
+        scheduler_z = None
+        # scheduler_z = torch.optim.lr_scheduler.CosineAnnealingLR(
+        #     optimizer_z, n_steps, 0.05 * z_lr)
+        save_img_every_n = 50
+    elif optimizer_type == 'lbfgs':
+        optimizer_z = torch.optim.LBFGS(params, lr=z_lr)
+        scheduler_z = None
+        save_img_every_n = 2
+    elif optimizer_type == 'adamW':
+        optimizer_z = torch.optim.AdamW(params,
+                                        lr=z_lr,
+                                        betas=(0.5, 0.999),
+                                        weight_decay=0)
+        scheduler_z = None
+        save_img_every_n = 50
+    else:
+        raise NotImplementedError()
+    
+    return optimizer_z, scheduler_z, save_image_every_n
+
 def _recover(x,
              gen,
              optimizer_type,
@@ -81,30 +109,8 @@ def _recover(x,
             params.append(z2)
         else:
             z2 = None
-        
-    if optimizer_type == 'sgd':
-        optimizer_z = torch.optim.SGD(params, lr=z_lr)
-        scheduler_z = None
-        save_img_every_n = 50
-    elif optimizer_type == 'adam':
-        optimizer_z = torch.optim.Adam(params, lr=z_lr)
-        scheduler_z = None
-        # scheduler_z = torch.optim.lr_scheduler.CosineAnnealingLR(
-        #     optimizer_z, n_steps, 0.05 * z_lr)
-        save_img_every_n = 50
-    elif optimizer_type == 'lbfgs':
-        optimizer_z = torch.optim.LBFGS(params, lr=z_lr)
-        scheduler_z = None
-        save_img_every_n = 2
-    elif optimizer_type == 'adamW':
-        optimizer_z = torch.optim.AdamW(params,
-                                        lr=z_lr,
-                                        betas=(0.5, 0.999),
-                                        weight_decay=0)
-        scheduler_z = None
-        save_img_every_n = 50
-    else:
-        raise NotImplementedError()
+     
+    optimizer_z, scheduler_z, save_img_every_n = get_opt(params, z_lr)
 
 
     # Recover image under forward model
@@ -184,7 +190,7 @@ def _recover(x,
             writer.add_scalar('ORIG_PSNR', psnr_from_mse(orig_mse_clamped), global_idx)
             
             if forward_model.inverse:
-                # only true for square inpainting 
+                # only for irregular inpainting 
                 writer.add_image('ORIG_MASKED', make_grid(y_masked_part.clamp(0,1)), global_idx)
                 writer.add_scalar('ORIG_PSNR_ONLY_MASKED', psnr_from_mse(masked_mse_clamped), global_idx)
             
@@ -221,7 +227,10 @@ def recover(x,
     best_psnr = -float("inf")
     best_return_val = None
     
-    writer = SummaryWriter(logdir)
+    writer = None
+    
+    if not disable_wandb:
+        writer = SummaryWriter(logdir)
 
     # Save original and distorted image
     if writer is not None:
@@ -229,10 +238,7 @@ def recover(x,
         if forward_model.viewable:
             writer.add_image("Distorted/Clamp", make_grid(forward_model(x.clamp(0, 1))))
 
-    for i in trange(restarts,
-                    desc='Restarts',
-                    leave=False,
-                    disable=disable_tqdm):
+    for i in trange(restarts, desc='Restarts', leave=False, disable=disable_tqdm):
         return_val = _recover(x=x,
                               gen=gen,
                               optimizer_type=optimizer_type,
@@ -253,8 +259,8 @@ def recover(x,
 
         p = psnr_from_mse(return_val[2])
         if math.isnan(p):
-            print(f"\n Restart [{i}]: nan value of psnr found, train_mse_clamped is {return_val[2]}")
-        # sometimes p is nan here -> why?
+            raise ValueError(f"\n Restart [{i}]: nan value of psnr found, train_mse_clamped is {return_val[2]}")
+            
         if p > best_psnr:
             best_psnr = p
             best_return_val = return_val
@@ -269,10 +275,3 @@ def recover(x,
     writer.close()
     return best_return_val
 
-
-
-if __name__ == '__main__':
-    print("testing...")
-    # save images of inverse 
-    
-    # check 

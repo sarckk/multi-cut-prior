@@ -9,7 +9,6 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchvision.utils import make_grid
-
 from forward_model import get_forward_model
 from model.biggan import BigGanSkip
 from model.dcgan import Generator as dcgan_generator
@@ -19,33 +18,32 @@ from utils import (dict_to_str, get_images_folder,
                    get_results_folder, load_target_image, load_trained_net,
                    psnr, psnr_from_mse, load_pretrained_dcgan_gen, load_pretrained_began_gen, ImgDataset)
 import wandb
-import hydra
-from omegaconf import DictConfig, OmegaConf
-from skimage.metrics import structural_similarity
+from skimage.metrics import structural_similarity as calc_ssim
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
 BASE_DIR = './runs'
 
+
 def reset_gen(model):
-    if model in ['mgan_began_inv', 'began_inv']:
+    if model == 'began':
         state_dict = torch.load('./trained_model/gen_208000.pth', map_location=DEVICE)
         gen = load_pretrained_began_gen(state_dict)
         gen = gen.eval().to(DEVICE)
         img_size = 128
-    elif model in ['mgan_dcgan_inv', 'dcgan_inv']:
+    elif model == 'dcgan':
         state_dict = torch.load('./trained_model/dcgan.pth', map_location=DEVICE)
         gen = load_pretrained_dcgan_gen(state_dict)
         gen = gen.eval().to(DEVICE)
         img_size = 64
-    elif model in ['mgan_biggan_inv', 'biggan_inv']:
+    elif model == 'biggan':
         gen = BigGanSkip().to(DEVICE)
         img_size = 128
     else:
         raise NotImplementedError()
     return gen, img_size
 
-def restore(args, metadata, z_number, first_cut, second_cut = None):
+
+def restore(args, metadata, z_number, first_cut, second_cut=None):
     z_init_mode_list = metadata['z_init_mode']
     limit_list = metadata['limit']
     assert len(z_init_mode_list) == len(limit_list)
@@ -149,16 +147,17 @@ def restore(args, metadata, z_number, first_cut, second_cut = None):
                         metadata['restarts'], logdir, args.disable_tqdm, 
                         args.tv_weight, args.disable_wandb
                     )
+                    
                     time_taken = time.time() - start
-
+                    
                     p = psnr(recovered_img.cpu().numpy(), img_batch.cpu().numpy())
-                    wandb.run.summary['best_origin_psnr'] = p
-                    ssim = structural_similarity(recovered_img.cpu().numpy(), img_batch.cpu().numpy(), channel_axis=1, data_range=1.0)
-                    wandb.run.summary['best_origin_ssim'] = ssim
-                    wandb.run.summary['time_taken'] = time_taken
-                    wandb.run.summary['batch_size'] = args.batch_size 
+                    ssim = calc_ssim(recovered_img.cpu().numpy(), img_batch.cpu().numpy(), channel_axis=1, data_range=1.0)
 
                     if not args.disable_wandb:
+                        wandb.run.summary['best_origin_psnr'] = p
+                        wandb.run.summary['best_origin_ssim'] = ssim
+                        wandb.run.summary['time_taken'] = time_taken
+                        wandb.run.summary['batch_size'] = args.batch_size 
                         wandb_run.finish()
 
                     # Make images folder
@@ -193,54 +192,52 @@ def restore(args, metadata, z_number, first_cut, second_cut = None):
 
 
 def gan_images(args, metadata):
-    # extra processing of metadata
-#     n_cuts_list = metadata['n_cuts_list']
-#     del (metadata['n_cuts_list'])
-    
-    first_cut = args.first_cut
-    metadata['cut'] = f'{first_cut},-1'
-    
-    print(f"===> Testing out combination: [{metadata['cut']}]")
-
-    restore(args, metadata, -1, first_cut, second_cut=None)
-        
-        
-def mgan_images(args, metadata):
-    # extra processing of metadata
     first_cut = args.first_cut
     second_cut = args.second_cut
-    metadata['cut'] = f'{first_cut},{second_cut}'
+    z_number = args.z_number # this doesn't matter for GS
+    
+    if second_cut is not None and z_number <= 1:
+        raise ValueError('For mGANPrior, use multiple latent codes. Otherwise there is no difference!')
+    
+    if second_cut is None:
+        metadata['cut'] = f'{first_cut},-1'
+        z_number = 1 # GS can only use 1 latent code
+        print(f"===> Testing Generator Surgery")
+    else:
+        metadata['cut'] = f'{first_cut},{second_cut}'
+        if first_cut == 0:
+            print(f"===> Testing our method")
+        else:
+            print(f"===> Testing Multi-code GAN Prior")
+    
+    print(f"==> Using {z_number} latent codes")
     print(f"===> Testing out combination: [{metadata['cut']}]")
-    
-    z_number = metadata['z_number']
-    
-    restore(args, metadata, z_number, first_cut, second_cut=second_cut)
+
+    restore(args, metadata, z_number, first_cut=first_cut, second_cut=second_cut)
 
     
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--model', required=True)
     
-    # mgan
+    #core
+    p.add_argument('--model', required=True)
     p.add_argument('--img_dir', required=True, help='')
-#     p.add_argument('--img_name', required=True, help='')
     p.add_argument('--first_cut', default=None, type=int)
     p.add_argument('--second_cut', default=None, type=int)
+    p.add_argument('--z_number', default=20, type=int)
     
     # training
     p.add_argument('--tv_weight', type=float, default=1e-8)
-    p.add_argument('-b', '--batch_size', type=int, default=1)
+    p.add_argument('-b', '--batch_size', type=int, default=1) # by default, single image at a time
     
     # logging
     p.add_argument('--disable_wandb', help='Disable weights and biases logging', action='store_true', default=False)
     
+    # run-related 
     p.add_argument('--run_name', default=None)
     p.add_argument('--disable_tqdm', action='store_true')
-    p.add_argument('--overwrite',
-                   action='store_true',
-                   help='Set flag to overwrite pre-existing files')
+    p.add_argument('--overwrite', action='store_true', help='Set flag to overwrite pre-existing files')
 
-    
     args = p.parse_args()
     
     os.makedirs(BASE_DIR, exist_ok=True)
@@ -252,22 +249,11 @@ def main():
 
     metadata = recovery_settings[args.model]
     metadata['tv_weight'] = args.tv_weight
-
-    if args.model in [
-            'began_inv',
-            'biggan_inv',
-            'dcgan_inv',
-    ]:
-        gan_images(args, metadata)
-    elif args.model in [
-            'mgan_began_inv',
-            'mgan_dcgan_inv',
-            'mgan_biggan_inv',
-    ]:
-        mgan_images(args, metadata)
-    else:
+    
+    if args.model not in ['began', 'biggan', 'dcgan']:
         raise NotImplementedError()
 
+    gan_images(args, metadata)
 
 if __name__ == '__main__':
     main()

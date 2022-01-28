@@ -104,14 +104,8 @@ recovery_settings = {
         'z_number': 10,
         'restarts': 3,
     },
-    'began_inv': {
+    'began': {
         **began_shared_settings,
-#         'n_cuts_list': [1,3],
-    },
-    'mgan_began_inv': {
-        **began_shared_settings,
-        'z_number' :20,
-#       'cuts': [[1,13], [1,14], [1,15], [2,6],[2,9],[2,11],[2,15], [3,9],[3,15],[4,9],[4,15]]
     },
      'mgan_biggan_inv': {
         'optimizer': 'lbfgs',
