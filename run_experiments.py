@@ -21,7 +21,7 @@ import wandb
 from skimage.metrics import structural_similarity as calc_ssim
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-BASE_DIR = './runs'
+BASE_DIR = './logs'
 
 
 def reset_gen(model):
@@ -44,21 +44,15 @@ def reset_gen(model):
 
 
 def restore(args, metadata, z_number, first_cut, second_cut=None):
-    z_init_mode_list = metadata['z_init_mode']
-    limit_list = metadata['limit']
-    assert len(z_init_mode_list) == len(limit_list)
-    del (metadata['z_init_mode'])
-    del (metadata['limit'])
-    
     data_split =  Path(args.img_dir).name
     gen, img_size = reset_gen(args.model)
     img_shape = (3, img_size, img_size)
     
-    dataset_name = 'coco2017test'
-    
     forwards = forward_models[args.model]
-    img_dataset = ImgDataset(args.img_dir, img_size)
-    img_dataloader = DataLoader(img_dataset, batch_size = args.batch_size, shuffle=False)
+    img_dataset = ImgDataset(args.img_dir, args.img_list, img_size)
+    img_dataloader = DataLoader(img_dataset, batch_size=1, shuffle=False)
+ 
+    cuts_combination = first_cut if second_cut is None else str([first_cut, second_cut])
     
     for i, (f, f_args_list) in enumerate(
                             tqdm(forwards.items(),
@@ -70,125 +64,124 @@ def restore(args, metadata, z_number, first_cut, second_cut=None):
                            leave=False,
                            disable=args.disable_tqdm):
 
-            for img_batch in tqdm(img_dataloader,
-                 desc='Image batches',
-                 leave=True,
-                 disable=args.disable_tqdm):
-                
-                # img_batch is a tensor of shape (batch_size, 3, img_size, img_size)
-                img_batch = img_batch.to(DEVICE)
-                               
+            for image, img_name in tqdm(img_dataloader, desc='Images', leave=True, disable=args.disable_tqdm):
+                image = image.squeeze().to(DEVICE)  # remove batch dimension 
+                img_name = img_name[0]
+                img_basename, _ = os.path.splitext(img_name)
+
                 f_args['img_shape'] = img_shape
                 forward_model = get_forward_model(f, **f_args)
                 del (f_args['img_shape'])
+            
+                metadata['img'] = img_basename
+                metadata_str = dict_to_str(metadata, exclude='img')
 
-                for z_init_mode, limit in zip(
-                        tqdm(z_init_mode_list,
-                             desc='z_init_mode',
-                             leave=False), limit_list):
-                    metadata['z_init_mode'] = z_init_mode
-                    metadata['limit'] = limit
-                    metadata['tv_weight'] = args.tv_weight
+                # Before doing recovery, check if results already exist and possibly skip
+                metadata_str = dict_to_str(metadata, exclude="img")
+                
+                results_folder = get_results_folder(
+                    image_name=img_basename,
+                    model=args.model,
+                    cuts=cuts_combination,
+                    split=data_split,
+                    forward_model=forward_model,
+                    recovery_params=metadata_str,
+                    base_dir=BASE_DIR
+                )
 
-                    # Before doing recovery, check if results already exist and possibly skip
-                    metadata_str = dict_to_str(metadata, exclude="img")
-                    recovered_name = 'recovered.pt'
-                    results_folder = get_results_folder(
-                        dataset_name = dataset_name,
-                        model=args.model,
-                        n_cuts=first_cut if second_cut is None else str([first_cut, second_cut]),
-                        split=data_split,
-                        forward_model=forward_model,
-                        recovery_params=metadata_str,
-                        base_dir=BASE_DIR)
+                os.makedirs(results_folder, exist_ok=True)
 
-                    os.makedirs(results_folder, exist_ok=True)
+                recovered_path = results_folder / 'recovered.pt'
+                if os.path.exists(recovered_path) and not args.overwrite:
+                    print(f'{recovered_path} already exists, skipping...')
+                    continue
 
-                    recovered_path = results_folder / recovered_name
-                    if os.path.exists(recovered_path) and not args.overwrite:
-                        print(f'{recovered_path} already exists, skipping...')
-                        continue
+                current_run_name = (
+                    f'{img_basename}.{forward_model}'
+                    f'.{metadata_str}'
+                )
 
-                    current_run_name = (
-                        f'coco2017.{forward_model}'
-                        f'.{metadata_str}')
+                if args.run_name is not None:
+                    current_run_name = current_run_name + f'.{args.run_name}'
 
-                    if args.run_name is not None:
-                        current_run_name = current_run_name + f'.{args.run_name}'
+                    
+                logdir = os.path.join('recovery_tensorboard_logs', args.model, current_run_name)
+                if os.path.exists(logdir):
+                    print("Overwriting pre-existing logs!")
+                    shutil.rmtree(logdir)
 
-                    run_dir = args.model
-                    logdir = os.path.join('recovery_tensorboard_logs', run_dir, current_run_name)
-                    if os.path.exists(logdir):
-                        print("Overwriting pre-existing logs!")
-                        shutil.rmtree(logdir)
-
-                    # wandb logging       
-                    if not args.disable_wandb:
-                        # wandb.tensorboard.patch(root_logdir=logdir)
-                        wandb_run = wandb.init(
-                            project="BATCH_IMAGES", 
-                            group=f + ', ' + dict_to_str(f_args),
-                            name=current_run_name, 
-                            tags=[args.model, data_split, dataset_name, f],
-                            config=metadata, 
-                            reinit=True,
-                            save_code=True,
-                            sync_tensorboard=True
-                        )
-
-                    start = time.time()
-                    recovered_img, distorted_img, _, masked_mse = recover(
-                        img_batch, gen, metadata['optimizer'], 
-                        first_cut,
-                        second_cut, 
-                        forward_model, z_init_mode, limit, 
-                        z_number,
-                        metadata['z_lr'], metadata['n_steps'],
-                        metadata['restarts'], logdir, args.disable_tqdm, 
-                        args.tv_weight, args.disable_wandb
+                    
+                if not args.disable_wandb:
+                    wandb_run = wandb.init(
+                        project="lmao", 
+                        group=f + ', ' + dict_to_str(f_args),
+                        name=current_run_name, 
+                        tags=[args.model, data_split, "coco2017", f],
+                        config=metadata, 
+                        reinit=True,
+                        save_code=True,
+                        sync_tensorboard=True
                     )
-                    
-                    time_taken = time.time() - start
-                    
-                    p = psnr(recovered_img.cpu().numpy(), img_batch.cpu().numpy())
-                    ssim = calc_ssim(recovered_img.cpu().numpy(), img_batch.cpu().numpy(), channel_axis=1, data_range=1.0)
 
-                    if not args.disable_wandb:
-                        wandb.run.summary['best_origin_psnr'] = p
-                        wandb.run.summary['best_origin_ssim'] = ssim
-                        wandb.run.summary['time_taken'] = time_taken
-                        wandb.run.summary['batch_size'] = args.batch_size 
-                        wandb_run.finish()
+                start = time.time()
+                recovered_img, distorted_img, loss_dict, best_params = recover(
+                    image, 
+                    gen, 
+                    metadata['optimizer'], 
+                    first_cut,
+                    second_cut, 
+                    forward_model, 
+                    metadata['z_init_mode'], 
+                    metadata['limit'], 
+                    z_number,
+                    metadata['z_lr'], 
+                    metadata['n_steps'],
+                    metadata['restarts'], 
+                    logdir, 
+                    args.disable_tqdm, 
+                    args.tv_weight, 
+                    args.disable_wandb, 
+                    args.log_every
+                )
+                time_taken = time.time() - start
+                
+                p = loss_dict['ORIG_PSNR']
+                masked_psnr = loss_dict['ORIG_PSNR_ONLY_MASKED']
+                ssim = calc_ssim(recovered_img.cpu().numpy(), image.cpu().numpy(), channel_axis=0, data_range=1.0)
+                metrics = {k: v for k,v in loss_dict.items() if 'PSNR' in k}
+                metrics['ORIG_SSIM'] = ssim
+                
+                if not args.disable_wandb:
+                    wandb.run.summary['best_origin_psnr'] = p
+                    wandb.run.summary['best_origin_ssim'] = ssim
+                    if forward_model.inverse:
+                        wandb.run.summary['best_masked_psnr'] = masked_psnr
+                        
+                    wandb.run.summary['time_taken'] = time_taken
+                    wandb_run.finish()
 
-                    # Make images folder
-                    img_folder = get_images_folder(split=data_split,
-                                                   image_name=dataset_name,
-                                                   img_size=img_size,
-                                                   base_dir=BASE_DIR)
-                    os.makedirs(img_folder, exist_ok=True)
+         
+                # Make images folder
+                img_folder = get_images_folder(split=data_split,
+                                               image_name=img_basename,
+                                               img_size=img_size,
+                                               base_dir=BASE_DIR)
+                os.makedirs(img_folder, exist_ok=True)
 
-                    # Save original image if needed
-                    original_img_path = img_folder / 'original.pt'
-                    if not os.path.exists(original_img_path):
-                        torch.save(torchvision.utils.make_grid(img_batch,nrow), original_img_path)
+                # Save original image if needed
+                original_img_path = img_folder / 'original.pt'
+                if not os.path.exists(original_img_path):
+                    torch.save(image, original_img_path)
 
-                    # Save distorted image if needed
-                    if forward_model.viewable:
-                        distorted_img_path = img_folder / f'{forward_model}.pt'
-                        if not os.path.exists(distorted_img_path):
-                            torch.save(make_grid(distorted_img), distorted_img_path)
+                # Save distorted image if needed
+                distorted_img_path = img_folder / f'{forward_model}.pt'
+                if not os.path.exists(distorted_img_path):
+                    torch.save(distorted_img, distorted_img_path)
 
-                    # Save recovered image and metadata
-                    torch.save(make_grid(recovered_img), recovered_path) # results_folder/ recovered.pt
-
-                    pickle.dump(metadata, open(results_folder / 'metadata.pkl', 'wb'))
-                    pickle.dump(p, open(results_folder / 'psnr.pkl', 'wb'))
-                    pickle.dump(ssim, open(results_folder / 'ssim.pkl', 'wb'))
-
-                    if masked_mse is not None:
-                        # only here if inpainting square 
-                        p_masked = psnr_from_mse(masked_mse)
-                        pickle.dump(p_masked, open(results_folder / 'psnr_masked.pkl', 'wb'))
+                # Save recovered image and metadata
+                torch.save(recovered_img, recovered_path) # results_folder/ recovered.pt
+                pickle.dump(metrics, open(results_folder / 'metrics.pkl', 'wb'))
+                pickle.dump(best_params, open(results_folder / 'best_params.pkl', 'wb'))
 
 
 def gan_images(args, metadata):
@@ -206,10 +199,10 @@ def gan_images(args, metadata):
     else:
         metadata['cut'] = f'{first_cut},{second_cut}'
         if first_cut == 0:
-            print(f"===> Testing our method")
-        else:
             print(f"===> Testing Multi-code GAN Prior")
-    
+        else:
+            print(f"===> Testing our method")
+
     print(f"==> Using {z_number} latent codes")
     print(f"===> Testing out combination: [{metadata['cut']}]")
 
@@ -222,19 +215,22 @@ def main():
     #core
     p.add_argument('--model', required=True)
     p.add_argument('--img_dir', required=True, help='')
+    p.add_argument('--img_list', required=True)
     p.add_argument('--first_cut', default=None, type=int)
     p.add_argument('--second_cut', default=None, type=int)
-    p.add_argument('--z_number', default=20, type=int)
+    p.add_argument('-z', '--z_number', default=20, type=int)
     
     # training
     p.add_argument('--tv_weight', type=float, default=1e-8)
-    p.add_argument('-b', '--batch_size', type=int, default=1) # by default, single image at a time
+    p.add_argument('--limit', default=1, type=int)
+    p.add_argument('--z_init_mode', default='clamped_normal', choices=['clamped_normal', 'normal', 'truncated_normal', 'rectified_normal', 'uniform', 'zero'])
     
     # logging
-    p.add_argument('--disable_wandb', help='Disable weights and biases logging', action='store_true', default=False)
+    p.add_argument('--disable_wandb', help='Disable weights and biases logging', action='store_true')
     
     # run-related 
     p.add_argument('--run_name', default=None)
+    p.add_argument('--log_every', default=5, type=int)
     p.add_argument('--disable_tqdm', action='store_true')
     p.add_argument('--overwrite', action='store_true', help='Set flag to overwrite pre-existing files')
 
@@ -249,6 +245,8 @@ def main():
 
     metadata = recovery_settings[args.model]
     metadata['tv_weight'] = args.tv_weight
+    metadata['z_init_mode'] = args.z_init_mode
+    metadata['limit'] = args.limit
     
     if args.model not in ['began', 'biggan', 'dcgan']:
         raise NotImplementedError()

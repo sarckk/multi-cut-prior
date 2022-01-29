@@ -138,7 +138,6 @@ class InpaintingSquare(ForwardModel):
     """
     Mask rectangular pixels
     """
-    viewable = True
     inverse = True
 
     def __init__(self, img_shape, mask_size, center = True, device=DEFAULT_DEVICE):
@@ -164,7 +163,6 @@ class InpaintingIrregular(ForwardModel):
     """
     Mask rectangular pixels
     """
-    viewable = True
     inverse = True
 
     def __init__(self, img_shape, mask_name, device=DEFAULT_DEVICE):
@@ -189,7 +187,6 @@ class InpaintingIrregular(ForwardModel):
 #
 
 class SuperResolution(ForwardModel):
-    viewable = True
     inverse = False 
 
     def __init__(self, scale_factor, mode='linear', align_corners=True, **kwargs):

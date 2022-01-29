@@ -12,7 +12,7 @@ python run_experiments.py --img_dir ./images/ood-examples --model began --first_
 python run_experiments.py --img_dir ./images/ood-examples --model began --first_cut 0 --second_cut 15 --tv_weight 1e-8 --overwrite
 
 # Our method (GS + mGANPrior)
-python run_experiments.py --img_dir ./images/ood-examples --model began --first_cut 3 --second_cut 15 --tv_weight 1e-8 --overwrite
+python run_experiments.py --img_dir ./images/ood-examples --model began  --first_cut 3 --second_cut 15 --tv_weight 1e-8 --overwrite
 ```
 
 ## Acknowledgements

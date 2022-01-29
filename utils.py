@@ -145,7 +145,7 @@ def get_z_vector(shape, mode, limit=1, **kwargs):
 
 
 def get_images_folder(split, image_name, img_size, base_dir):
-    return Path(base_dir) / 'images_fixed' / split / image_name / str(img_size)
+    return Path(base_dir) / 'images' / split / image_name / str(img_size)
 
 
 def parse_images_folder(p):
@@ -155,10 +155,10 @@ def parse_images_folder(p):
 
 
 # Use get_results_folder for all models, use dummy n_cuts if necessary
-def get_results_folder(dataset_name, model, n_cuts, split, forward_model,
+def get_results_folder(image_name, model, cuts, split, forward_model,
                        recovery_params, base_dir):
-    return (Path(base_dir) / 'results_fixed' / model / f'n_cuts={n_cuts}' / split /
-            dataset_name / str(forward_model) / recovery_params)
+    return (Path(base_dir) / 'results' / model / f'cuts={cuts}' / split /
+            image_name / str(forward_model) / recovery_params)
 
 
 def parse_results_folder(root='./final_runs/results'):
@@ -269,73 +269,7 @@ def forward_model_from_str(s):
         name = lst[0]
         return name, {}
 
-
-def get_baseline_results_folder(image_name, model, split, n_measure,
-                                lasso_coeff, base_dir):
-    return (Path(base_dir) / 'baseline_results' / model / split / image_name /
-            f'n_measure={n_measure}.lasso_coeff={lasso_coeff}')
-
-
-def parse_baseline_results_folder(root='./runs/baseline_results'):
-    rows_list = []
-    p = Path(root)
-    for model_path in p.iterdir():
-        model = model_path.name
-        if model.endswith('64'):
-            image_size = '64'
-        elif model.endswith('128'):
-            image_size = '128'
-        else:
-            raise KeyError()
-        for split_path in model_path.iterdir():
-            split = split_path.name
-            for image_name_path in split_path.iterdir():
-                image_name = image_name_path.name
-                for params_path in image_name_path.iterdir():
-                    params = str_to_dict(params_path.name)
-                    if not os.path.exists(params_path / 'metadata.pkl'):
-                        print('metadata.pkl not found for', params_path)
-                        continue
-                    # with open(params_path / 'metadata.pkl', 'rb') as f:
-                    #     metadata = pickle.load(f)
-
-                    if os.path.exists(params_path / 'psnr_clamped.pkl'):
-                        with open(params_path / 'psnr_clamped.pkl', 'rb') as f:
-                            ps = pickle.load(f)
-                    else:
-                        recovered = np.load(params_path / 'recovered.npy')
-                        orig_path = p.parent.joinpath('images', split,
-                                                      image_name, image_size,
-                                                      'original.npy')
-                        orig = np.load(orig_path)
-
-                        ps = psnr(torch.from_numpy(orig),
-                                  torch.from_numpy(recovered).clamp(0, 1))
-
-                        with open(params_path / 'psnr_clamped.pkl', 'wb') as f:
-                            pickle.dump(float(ps), f)
-
-                    current_row_dict = {}
-
-                    current_row_dict['model'] = model
-                    current_row_dict['split'] = split
-                    current_row_dict['image_name'] = image_name
-                    current_row_dict['n_measure'] = int(params['n_measure'])
-                    current_row_dict['lasso_coeff'] = float(
-                        params['lasso_coeff'])
-                    # current_row_dict.update(metadata)
-                    current_row_dict['psnr'] = float(ps)
-
-                    rows_list.append(current_row_dict)
-
-    df = pd.DataFrame(rows_list)
-    os.makedirs(p.parent / 'processed_results', exist_ok=True)
-    with open(p.parent / 'processed_results/df_baseline_results.pkl',
-              'wb') as f:
-        pickle.dump(df, f)
-
-
-
+    
 ## New code
 def _rename_state_dict(name_mapping, state_dict):
     # rename layers
@@ -435,18 +369,20 @@ def load_pretrained_began_disc(state_dict):
 
 
 class ImgDataset(Dataset):
-    def __init__(self, img_dir, img_size):
+    def __init__(self, img_dir, img_list, img_size):
         self.img_dir = img_dir
         self.img_size = img_size
-        self.img_list = sorted(os.listdir(img_dir))
+        
+        with open(img_list) as file:
+            self.image_names = [line.rstrip() for line in file]
                                
     def __len__(self):
-        return len(self.img_list)
+        return len(self.image_names)
     
     def __getitem__(self, idx):
-        img_name = self.img_list[idx]
-        return load_target_image(os.path.join(self.img_dir, img_name), self.img_size)
-                            
+        img_name = self.image_names[idx]
+        img_tensor = load_target_image(os.path.join(self.img_dir, img_name), self.img_size)
+        return img_tensor, img_name
 ##
 
 
