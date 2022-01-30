@@ -165,13 +165,13 @@ class InpaintingIrregular(ForwardModel):
     """
     inverse = True
 
-    def __init__(self, img_shape, mask_name, device=DEFAULT_DEVICE):
+    def __init__(self, img_shape, mask_dir, mask_name, device=DEFAULT_DEVICE):
         """
         img_shape - 3 x H x W
         fraction_kept - number in [0, 1], what portion of pixels to retain
         """    
         self.mask_name = mask_name
-        mask = load_target_image(os.path.join('./images/mask/testing_mask_dataset', mask_name), img_shape[2]).to(device)
+        mask = load_target_image(os.path.join(mask_dir, mask_name), img_shape[2]).to(device)
         mask[mask != 1.0] = 0.0 # fix to 1 and 0
         self.A = torch.abs(mask - 1.0)
         

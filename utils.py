@@ -13,7 +13,7 @@ from PIL import Image
 from scipy.stats import truncnorm
 from torchvision import transforms
 from model.dcgan import Generator as GeneratorDCGAN, Discriminator as DiscriminatorDCGAN
-from model.began import Generator128, BEGAN_Decoder
+from model.began import BEGAN_Decoder
 
 def print_torchvec(x):
     return ','.join([f'{i:0.3f}' for i in x.tolist()])
@@ -144,8 +144,8 @@ def get_z_vector(shape, mode, limit=1, **kwargs):
     return z
 
 
-def get_images_folder(split, image_name, img_size, base_dir):
-    return Path(base_dir) / 'images' / split / image_name / str(img_size)
+def get_images_folder(dataset, image_name, img_size, base_dir):
+    return Path(base_dir) / 'images' / dataset / image_name / str(img_size)
 
 
 def parse_images_folder(p):
@@ -155,9 +155,9 @@ def parse_images_folder(p):
 
 
 # Use get_results_folder for all models, use dummy n_cuts if necessary
-def get_results_folder(image_name, model, cuts, split, forward_model,
+def get_results_folder(image_name, model, cuts, dataset, forward_model,
                        recovery_params, base_dir):
-    return (Path(base_dir) / 'results' / model / f'cuts={cuts}' / split /
+    return (Path(base_dir) / 'results' / model / f'cuts={cuts}' / dataset /
             image_name / str(forward_model) / recovery_params)
 
 

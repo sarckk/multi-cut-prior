@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-# From https://colab.research.google.com/github/rrmina/neural-style-pytorch/blob/master/neural_style_preserve_color.ipynb#scrollTo=MgSAy8vi-wD9
+# From https://colab.research.google.com/github/rrmina/neural-style-pytorch/blob/master/neural_style_preserve_color.ipynb
 def total_variation_loss(c):
     x = c[:,:,1:,:] - c[:,:,:-1,:]
     y = c[:,:,:,1:] - c[:,:,:,:-1]
@@ -97,7 +97,7 @@ def _recover(x,
              log_every=1,
              **kwargs):
 
-    uses_multicode = (second_cut is not None and z_number != -1)
+    uses_multicode = (second_cut != -1 and z_number > 1)
     
     z1_dim, z1_dim2 = gen.input_shapes[first_cut]
     
@@ -147,7 +147,7 @@ def _recover(x,
             x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
             if uses_multicode:
                 F_l_2 = (x_hats * alpha[:, :, None, None]).sum(0, keepdim=True) / z_number
-                x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
+                x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=-1, **kwargs)
                 
             if gen.rescale:
                 x_hats = (x_hats + 1) / 2
@@ -171,7 +171,7 @@ def _recover(x,
             x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
             if uses_multicode:
                 F_l_2 = (x_hats * alpha[:, :, None, None]).sum(0, keepdim=True) / z_number
-                x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=None, **kwargs)
+                x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=-1, **kwargs)
             
             if gen.rescale:
                 x_hats = (x_hats + 1) / 2

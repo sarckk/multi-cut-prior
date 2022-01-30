@@ -1,17 +1,18 @@
 #!/usr/bin/env sh
 
-IMG_LIST=${1:-./image_list.txt}
-
-
-echo $IMG_LIST
+PROJECT_NAME=${1:-test123}               
+FM=${2:-InpaintingIrregular}
+C1=${3:-0}
+C2=${4:--1}
 
 python run_experiments.py \
---img_dir ./images/test2017 \
---img_list $IMG_LIST \
+--project_name $PROJECT_NAME \
 --model began \
+--forward_model $FM \
+--img_list image_list.txt \
+--first_cut $C1 \
+--second_cut $C2 \
 --z_number 20 \
---first_cut 3 \
---second_cut 15 \
---tv_weight 1e-8 \
---log_every 10 \
 --overwrite \
+--n_steps 40 \
+${5:+--mask_name $5}

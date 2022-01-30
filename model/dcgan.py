@@ -51,8 +51,8 @@ class Generator(nn.Module):
             z = layer(z)
             self.input_shapes.append((tuple(z.shape[1:]), ()))
 
-    def forward(self, z, z2=None, n_cuts=0, end=None):
-        if end is None:
+    def forward(self, z, z2=None, n_cuts=0, end=-1):
+        if end == -1:
             end = len(self.main)
         for i, layer in enumerate(self.main[n_cuts:end]):
             z = layer(z)

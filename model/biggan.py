@@ -151,13 +151,13 @@ class BigGanSkip(nn.Module):
             print(n_cuts, z1.shape, z2.shape, res.shape[1:])
         return
 
-    def forward(self, z1, z2, truncation=0.4, n_cuts=0, end=None):
+    def forward(self, z1, z2, truncation=0.4, n_cuts=0, end=-1):
         """
         z1 - represents the result of skipping layers
         z2 - represents the concat of their latent vector (128) +
              their class embedding (128)
         """
-        if end is None:
+        if end == -1:
             end = len(self.input_shapes) - 1
         return self.biggan(z1, z2, truncation=truncation, n_cuts=n_cuts,end=end)
 

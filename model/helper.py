@@ -1,10 +1,5 @@
 import torch.nn as nn
 
-def conv(in_planes, out_planes, ks, stride, pad, bias=True):
-    """3x3 convolution with padding"""
-    return PartialConv2d(in_planes, out_planes, kernel_size=ks, stride=stride,
-                     padding=pad, bias=bias, multi_channel=True)
-
 class ConvBlock(nn.Module):
     """
     All convs are created with:

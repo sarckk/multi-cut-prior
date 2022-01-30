@@ -3,16 +3,16 @@
 ## Sample commands
 ```python
 # default BEGAN
-python run_experiments.py --img_dir ./images/ood-examples --model began --first_cut 0 --tv_weight 1e-8 --overwrite
+./scripts/run_experiments.sh project-name InpaintingIrregular 0 -1
 
 # BEGAN with surgery
-python run_experiments.py --img_dir ./images/ood-examples --model began --first_cut 3 --tv_weight 1e-8 --overwrite
+./scripts/run_experiments.sh project-name InpaintingIrregular 2 -1 04974.png
 
 # BEGAN using mGANPrior
-python run_experiments.py --img_dir ./images/ood-examples --model began --first_cut 0 --second_cut 15 --tv_weight 1e-8 --overwrite
+./scripts/run_experiments.sh project-name InpaintingIrregular 0 10 04974.png
 
 # Our method (GS + mGANPrior)
-python run_experiments.py --img_dir ./images/ood-examples --model began  --first_cut 3 --second_cut 15 --tv_weight 1e-8 --overwrite
+./scripts/run_experiments.sh project-name InpaintingIrregular 2 10 04974.png
 ```
 
 ## Acknowledgements
