@@ -9,8 +9,9 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
 from tqdm import tqdm, trange
-from utils import (get_z_vector, load_target_image, load_trained_net, psnr, psnr_from_mse)
+from utils import (get_z_vector, load_target_image, load_trained_net, psnr, psnr_from_mse, ROOT_LOGGER_NAME)
 import wandb
+import logging
 
 warnings.filterwarnings("ignore")
 
@@ -84,6 +85,7 @@ def _recover(x,
              first_cut,
              second_cut,
              forward_model,
+             logger,
              writer=None,
              mode='clamped_normal',
              limit=1,
@@ -94,9 +96,11 @@ def _recover(x,
              disable_tqdm=False,
              tv_weight=0.0,
              disable_wandb=False,
-             log_every=1,
+             print_every=1,
              **kwargs):
-
+    
+    is_valid_run = True
+    
     uses_multicode = (second_cut != -1 and z_number > 1)
     
     z1_dim, z1_dim2 = gen.input_shapes[first_cut]
@@ -181,11 +185,16 @@ def _recover(x,
         
         loss_dict = pack_losses(forward_model, x_hats_clamp, x, y_observed, y_masked_part)
         
+        # if train mse loss is > 0.1, something probably went wrong... let's log this case
+        if loss_dict['TRAIN_MSE'] > 0.1: 
+            is_valid_run = False
+        
+        
         global_idx = restart_idx * n_steps + j + 1
             
-        if j % log_every == 0 and disable_tqdm:
-            print(f'\nRestart: {restart_idx}, Step: {j}')
-            print('\t'.join(f'{k}:{v:.3f}' for k, v in loss_dict.items()))
+        if (j+1) % print_every == 0:
+            logger.info(f'\nRestart: {restart_idx}, Step: {j}')
+            logger.info('\t'.join(f'{k}:{v:.5f}' for k, v in loss_dict.items()))
         
         if writer is not None:
             for k,v in loss_dict.items():
@@ -202,8 +211,8 @@ def _recover(x,
 
     if writer is not None:
         writer.add_image('Final', x_hats_clamp.squeeze(), restart_idx)
-
-    return x_hats_clamp.squeeze(), y_observed.squeeze(), loss_dict, params_dict
+    
+    return x_hats_clamp.squeeze(), y_observed.squeeze(), loss_dict, params_dict, is_valid_run
 
 def recover(x,
             gen,
@@ -221,11 +230,13 @@ def recover(x,
             disable_tqdm=False,
             tv_weight=0.0,
             disable_wandb=False,
-            log_every=1,
+            print_every=1,
             **kwargs):
-
+    
     best_psnr = -float("inf")
     best_return_val = None
+    
+    logger = logging.getLogger(ROOT_LOGGER_NAME)
     
     writer = None
     
@@ -244,6 +255,7 @@ def recover(x,
                               first_cut=first_cut,
                               second_cut=second_cut,
                               forward_model=forward_model,
+                              logger=logger,
                               writer=writer,
                               mode=mode,
                               limit=limit,
@@ -254,7 +266,7 @@ def recover(x,
                               disable_tqdm=disable_tqdm,
                               tv_weight=tv_weight,
                               disable_wandb=disable_wandb,
-                              log_every=log_every,
+                              print_every=print_every,
                               **kwargs)
         
         train_mse = return_val[2]['TRAIN_MSE']
@@ -268,7 +280,7 @@ def recover(x,
 
     if writer is not None:
         writer.add_image('Best recovered', best_return_val[0])
-    
-    writer.close()
+        writer.close()
+        
     return best_return_val
 

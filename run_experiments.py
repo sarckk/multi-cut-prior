@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 from pathlib import Path
+import logging
 import shutil
 import time
 import numpy as np
@@ -16,13 +17,13 @@ from recover import recover
 from settings import forward_models
 from utils import (dict_to_str, get_images_folder,
                    get_results_folder, load_target_image, load_trained_net,
-                   psnr, psnr_from_mse, load_pretrained_dcgan_gen, load_pretrained_began_gen, ImgDataset)
+                   psnr, psnr_from_mse, load_pretrained_dcgan_gen, load_pretrained_began_gen, ImgDataset,
+                  setup_logger, get_logs_folder, ROOT_LOGGER_NAME)
 import wandb
 from skimage.metrics import structural_similarity as calc_ssim
 
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-BASE_DIR = './logs'
 
 
 def reset_gen(model):
@@ -64,12 +65,16 @@ def verify_args(args):
     if args.second_cut != -1 and args.z_number <= 1:
         raise ValueError('For mGANPrior, use multiple latent codes. Otherwise there is no difference!')
     
+
+    
 def restore(args, metadata, z_number, first_cut, second_cut):
     dataset_name =  Path(args.img_dir).name
     gen, img_size = reset_gen(args.model)
     img_shape = (3, img_size, img_size)
     
     f_args = forward_models[args.forward_model]
+    
+    logger = setup_logger(ROOT_LOGGER_NAME, get_logs_folder(args.base_dir, args.project_name))
     
     # try overriding mask name in f_args if forward model is IrregularInpainting
     if args.forward_model == 'InpaintingIrregular' and args.mask_name is not None:
@@ -83,7 +88,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
  
     cuts_combination = str([first_cut, second_cut])
     
-    for image, img_name in tqdm(img_dataloader, desc='Images', leave=True, disable=args.disable_tqdm):
+    for idx, (image, img_name) in enumerate(tqdm(img_dataloader, desc='Images', leave=True, disable=args.disable_tqdm)):
         image = image.squeeze().to(DEVICE)  # remove batch dimension 
         img_name = img_name[0]
         img_basename, _ = os.path.splitext(img_name)
@@ -98,10 +103,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
         del (f_args['mask_dir'])
 
         metadata['img'] = img_basename
-        metadata_str = dict_to_str(metadata, exclude='img')
-
-        # Before doing recovery, check if results already exist and possibly skip
-        metadata_str = dict_to_str(metadata, exclude="img")
+        metadata_str = dict_to_str(metadata, exclude=['img', 'cut'])
 
         results_folder = get_results_folder(
             image_name=img_basename,
@@ -110,7 +112,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
             dataset=dataset_name,
             forward_model=forward_model,
             recovery_params=metadata_str,
-            base_dir=BASE_DIR
+            base_dir=args.base_dir
         )
 
         os.makedirs(results_folder, exist_ok=True)
@@ -122,7 +124,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
 
         current_run_name = (
             f'{img_basename}.{forward_model}'
-            f'.{metadata_str}'
+            f'.{metadata_str}.cut={metadata["cut"]}'
         )
 
         if args.run_name is not None:
@@ -148,7 +150,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
             )
 
         start = time.time()
-        recovered_img, distorted_img, loss_dict, best_params = recover(
+        recovered_img, distorted_img, loss_dict, best_params, is_valid = recover(
             image, 
             gen, 
             metadata['optimizer'], 
@@ -165,21 +167,29 @@ def restore(args, metadata, z_number, first_cut, second_cut):
             args.disable_tqdm, 
             metadata['tv_weight'], 
             args.disable_wandb, 
-            args.log_every
+            args.print_every
         )
         time_taken = time.time() - start
-
+        
+        # this prints to stdout
+        logger.info(f'[{idx+1}/{len(img_dataloader)}]  Img: {img_basename}  Time taken: {time_taken:.3f}')
+        
+        # this saves to log destination file
+        if not is_valid:
+            logger.warning(f'[{idx+1}/{len(img_dataloader)}]  Run: {current_run_name}  Potentially invalid run.')
+        
+        
         p = loss_dict['ORIG_PSNR']
-        masked_psnr = loss_dict['ORIG_PSNR_ONLY_MASKED']
         ssim = calc_ssim(recovered_img.cpu().numpy(), image.cpu().numpy(), channel_axis=0, data_range=1.0)
         metrics = {k: v for k,v in loss_dict.items() if 'PSNR' in k}
         metrics['ORIG_SSIM'] = ssim
+        metrics['time_taken'] = time_taken
 
         if not args.disable_wandb:
             wandb.run.summary['best_origin_psnr'] = p
             wandb.run.summary['best_origin_ssim'] = ssim
             if forward_model.inverse:
-                wandb.run.summary['best_masked_psnr'] = masked_psnr
+                wandb.run.summary['best_masked_psnr'] = loss_dict['ORIG_PSNR_ONLY_MASKED']
 
             wandb.run.summary['time_taken'] = time_taken
             wandb_run.finish()
@@ -189,7 +199,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
         img_folder = get_images_folder(dataset=dataset_name,
                                        image_name=img_basename,
                                        img_size=img_size,
-                                       base_dir=BASE_DIR)
+                                       base_dir=args.base_dir)
         os.makedirs(img_folder, exist_ok=True)
 
         # Save original image if needed
@@ -239,6 +249,7 @@ def main():
     p.add_argument('--model', required=True)
     p.add_argument('--forward_model', required=True, choices=['InpaintingIrregular', 'InpaintingScatter', 'SuperResolution'])
     p.add_argument('--img_dir', default='./images/test2017')
+    p.add_argument('--base_dir', default='./logs')
     p.add_argument('--img_list', required=True)
     p.add_argument('--first_cut', default=0, type=int)
     p.add_argument('--second_cut', default=-1, type=int)
@@ -261,7 +272,7 @@ def main():
     p.add_argument('--disable_wandb', help='Disable weights and biases logging', action='store_true')
     p.add_argument('--run_name', default=None)
     p.add_argument('--project_name', required=True)
-    p.add_argument('--log_every', default=5, type=int)
+    p.add_argument('--print_every', default=10, type=int)
     p.add_argument('--disable_tqdm', action='store_true')
     p.add_argument('--overwrite', action='store_true', help='Set flag to overwrite pre-existing files')
 
@@ -269,7 +280,7 @@ def main():
     
     verify_args(args)
     
-    os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs(args.base_dir, exist_ok=True)
     
     torch.manual_seed(0)
     np.random.seed(0)

@@ -15,4 +15,7 @@ python run_experiments.py \
 --z_number 20 \
 --overwrite \
 --n_steps 40 \
+--restarts 1 \
+--z_lr 1 \
+--disable_wandb \
 ${5:+--mask_name $5}

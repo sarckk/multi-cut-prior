@@ -2,7 +2,8 @@ import io
 import os
 import pickle
 from pathlib import Path
-
+import sys
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,7 +23,7 @@ def print_torchvec(x):
 def dict_to_str(d, exclude=None):
     s = []
     for k, v in d.items():
-        if exclude is not None and k == exclude:
+        if exclude is not None and k in exclude:
             continue
         s.append(f"{k}={v}")
     return ".".join(s)
@@ -157,8 +158,7 @@ def parse_images_folder(p):
 # Use get_results_folder for all models, use dummy n_cuts if necessary
 def get_results_folder(image_name, model, cuts, dataset, forward_model,
                        recovery_params, base_dir):
-    return (Path(base_dir) / 'results' / model / f'cuts={cuts}' / dataset /
-            image_name / str(forward_model) / recovery_params)
+    return (Path(base_dir) / 'results' / model / dataset / image_name / str(forward_model) / recovery_params / f'cuts={cuts}' )
 
 
 def parse_results_folder(root='./final_runs/results'):
@@ -383,6 +383,30 @@ class ImgDataset(Dataset):
         img_name = self.image_names[idx]
         img_tensor = load_target_image(os.path.join(self.img_dir, img_name), self.img_size)
         return img_tensor, img_name
+
+
+def setup_logger(name, log_dest):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    fmt = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+    fh = logging.FileHandler(log_dest)
+    fh.setFormatter(fmt)
+    # only write to log file if we have a warning
+    fh.setLevel(logging.WARNING)
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(fmt)
+    sh.setLevel(logging.INFO)
+    logger.addHandler(fh)
+    logger.addHandler(sh)
+    return logger
+
+def get_logs_folder(base_dir, project_name):
+    dir_path = Path(base_dir) / project_name 
+    os.makedirs(dir_path, exist_ok=True)
+    return dir_path / 'restore_logs.txt'
+
+
+ROOT_LOGGER_NAME = 'restore_logger'
 ##
 
 
