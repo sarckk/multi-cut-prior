@@ -1,8 +1,8 @@
 jupyterlab
+pytorch-pretrained-biggan
 matplotlib
 numpy
 pandas
-pytorch-pretrained-biggan
 scipy
 scikit-learn
 tensorboard
@@ -10,7 +10,5 @@ torch
 torchvision
 tqdm
 seaborn
-pytorch_lightning
 wandb
-hydra-core
 scikit-image

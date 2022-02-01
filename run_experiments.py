@@ -246,7 +246,7 @@ def main():
     p = argparse.ArgumentParser()
     
     # core
-    p.add_argument('--model', required=True)
+    p.add_argument('--model', required=True, default='began', choices=['began','biggan','dcgan'])
     p.add_argument('--forward_model', required=True, choices=['InpaintingIrregular', 'InpaintingScatter', 'SuperResolution'])
     p.add_argument('--img_dir', default='./images/test2017')
     p.add_argument('--base_dir', default='./logs')
