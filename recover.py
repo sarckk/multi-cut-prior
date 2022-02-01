@@ -12,10 +12,12 @@ from tqdm import tqdm, trange
 from utils import (get_z_vector, load_target_image, load_trained_net, psnr, psnr_from_mse, ROOT_LOGGER_NAME)
 import wandb
 import logging
+import lpips
 
 warnings.filterwarnings("ignore")
 
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+lpips_alex = lpips.LPIPS(net='alex').to(DEVICE)
 
 # From https://colab.research.google.com/github/rrmina/neural-style-pytorch/blob/master/neural_style_preserve_color.ipynb
 def total_variation_loss(c):
@@ -64,11 +66,13 @@ def pack_losses(forward_model, x_hats_clamp, x, y_observed, y_masked_part):
         masked_mse_clamped = None
 
     orig_psnr = psnr_from_mse(orig_mse_clamped)
+    orig_lpips = lpips_alex(x_hats_clamp * 2 - 1, x * 2 - 1) # we need to rescale for imagenet
 
     loss_dict = {
         'TRAIN_MSE': train_mse_clamped,
         'ORIG_MSE': orig_mse_clamped,
         'ORIG_PSNR': orig_psnr,
+        'ORIG_LPIPS': orig_lpips.item()
     }
 
     if masked_mse_clamped is not None:
@@ -140,6 +144,9 @@ def _recover(x,
     
     if forward_model.inverse:
         y_masked_part = forward_model.inverse(x)
+        y_masked_part = y_masked_part.clamp(0,1)
+    else:
+        y_masked_part = None
 
     for j in trange(n_steps,
                     leave=False,
@@ -201,7 +208,7 @@ def _recover(x,
                 writer.add_scalar(k, v, global_idx)
             
             if forward_model.inverse:
-                writer.add_image('ORIG_MASKED', y_masked_part.clamp(0,1).squeeze(), global_idx)
+                writer.add_image('ORIG_MASKED', y_masked_part.squeeze(), global_idx)
             
             if j % save_img_every == 0:
                 writer.add_image('Recovered', x_hats_clamp.squeeze(), global_idx)

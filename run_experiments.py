@@ -20,6 +20,7 @@ from utils import (dict_to_str, get_images_folder,
                    psnr, psnr_from_mse, load_pretrained_dcgan_gen, load_pretrained_began_gen, ImgDataset,
                   setup_logger, get_logs_folder, ROOT_LOGGER_NAME)
 import wandb
+import lpips
 from skimage.metrics import structural_similarity as calc_ssim
 
 
@@ -92,15 +93,14 @@ def restore(args, metadata, z_number, first_cut, second_cut):
         image = image.squeeze().to(DEVICE)  # remove batch dimension 
         img_name = img_name[0]
         img_basename, _ = os.path.splitext(img_name)
-
-        f_args['img_shape'] = img_shape
+        
+        forward_model_args = f_args.copy()
+        forward_model_args['img_shape'] = img_shape
 
         if args.forward_model == 'InpaintingIrregular':
-            f_args['mask_dir'] = args.mask_dir
+            forward_model_args['mask_dir'] = args.mask_dir
             
-        forward_model = get_forward_model(args.forward_model, **f_args)
-        del (f_args['img_shape'])
-        del (f_args['mask_dir'])
+        forward_model = get_forward_model(args.forward_model, **forward_model_args)
 
         metadata['img'] = img_basename
         metadata_str = dict_to_str(metadata, exclude=['img', 'cut'])
@@ -181,7 +181,8 @@ def restore(args, metadata, z_number, first_cut, second_cut):
         
         p = loss_dict['ORIG_PSNR']
         ssim = calc_ssim(recovered_img.cpu().numpy(), image.cpu().numpy(), channel_axis=0, data_range=1.0)
-        metrics = {k: v for k,v in loss_dict.items() if 'PSNR' in k}
+        
+        metrics = {k: v for k,v in loss_dict.items()}
         metrics['ORIG_SSIM'] = ssim
         metrics['time_taken'] = time_taken
 

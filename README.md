@@ -9,10 +9,10 @@
 ./scripts/run_experiments.sh project-name InpaintingIrregular 2 -1 04974.png
 
 # BEGAN using mGANPrior
-./scripts/run_experiments.sh project-name InpaintingIrregular 0 10 04974.png
+./scripts/run_experiments.sh project-name InpaintingScatter 0 10 04974.png
 
 # Our method (GS + mGANPrior)
-./scripts/run_experiments.sh project-name InpaintingIrregular 2 10 04974.png
+./scripts/run_experiments.sh project-name InpaintingScatter 1 14 04974.png
 ```
 
 ## Acknowledgements

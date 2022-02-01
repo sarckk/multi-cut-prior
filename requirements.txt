@@ -12,3 +12,4 @@ tqdm
 seaborn
 wandb
 scikit-image
+lpips
