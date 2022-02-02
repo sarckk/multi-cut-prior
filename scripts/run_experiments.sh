@@ -14,7 +14,7 @@ python run_experiments.py \
 --second_cut $C2 \
 --z_number 20 \
 --overwrite \
---n_steps 60 \
+--n_steps 30 \
 --restarts 1 \
 --z_lr 1 \
 --disable_tqdm \

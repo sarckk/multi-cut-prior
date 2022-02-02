@@ -69,8 +69,8 @@ def pack_losses(forward_model, x_hats_clamp, x, y_observed, y_masked_part):
     orig_lpips = lpips_alex(x_hats_clamp * 2 - 1, x * 2 - 1) # we need to rescale for imagenet
 
     loss_dict = {
-        'TRAIN_MSE': train_mse_clamped,
-        'ORIG_MSE': orig_mse_clamped,
+        'TRAIN_MSE': train_mse_clamped.item(),
+        'ORIG_MSE': orig_mse_clamped.item(),
         'ORIG_PSNR': orig_psnr,
         'ORIG_LPIPS': orig_lpips.item()
     }
@@ -193,7 +193,7 @@ def _recover(x,
         loss_dict = pack_losses(forward_model, x_hats_clamp, x, y_observed, y_masked_part)
         
         # if train mse loss is > 0.1, something probably went wrong... let's log this case
-        if loss_dict['TRAIN_MSE'] > 0.1: 
+        if loss_dict['TRAIN_MSE'] > 0.01: 
             is_valid_run = False
         
         
@@ -240,7 +240,7 @@ def recover(x,
             print_every=1,
             **kwargs):
     
-    best_psnr = -float("inf")
+    best_train_mse = float("inf")
     best_return_val = None
     
     logger = logging.getLogger(ROOT_LOGGER_NAME)
@@ -277,12 +277,12 @@ def recover(x,
                               **kwargs)
         
         train_mse = return_val[2]['TRAIN_MSE']
-        p_train = psnr_from_mse(train_mse)
-        if math.isnan(p_train):
+
+        if train_mse == 0 or math.isnan(train_mse):
             raise ValueError(f"\n Restart [{i}]: nan value of psnr found, train_mse_clamped is {train_mse}")
             
-        if p_train > best_psnr:
-            best_psnr = p_train
+        if train_mse < best_train_mse:
+            best_train_mse = train_mse
             best_return_val = return_val
 
     if writer is not None:
