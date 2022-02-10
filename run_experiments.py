@@ -166,6 +166,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
             logdir, 
             args.disable_tqdm, 
             metadata['tv_weight'], 
+            metadata['cos_weight'],
             args.disable_wandb, 
             args.print_every
         )
@@ -262,6 +263,7 @@ def main():
     
     # training
     p.add_argument('--tv_weight', type=float, default=1e-8)
+    p.add_argument('--cos_weight', type=float, default=0.0)
     p.add_argument('--restarts', type=int, default=1)
     p.add_argument('--n_steps', type=int, default=40)
     p.add_argument('--z_lr', type=float, default=1.0)
@@ -290,6 +292,7 @@ def main():
 
     metadata = dict()
     metadata['tv_weight'] = args.tv_weight
+    metadata['cos_weight'] = args.cos_weight
     metadata['optimizer'] = args.optimizer
     metadata['n_steps'] = args.n_steps
     metadata['z_lr'] = args.z_lr
