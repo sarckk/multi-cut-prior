@@ -1,6 +1,13 @@
 # Generator Surgery with Multi-Code GAN Prior for Image Restoration
 
-## Sample commands
+## Commands for submitting experiment jobs to cluster
+The following command uses `submit_single.sh` internally to submit all jobs to the queue:
+
+```python
+./submit_multple.sh <project_name> <path_to_image_list> <path_to_img_dir> <forward_model> <mask_name> # mask_name only valid for InpaintingIrregular forward model
+```
+
+## Commands for running locally
 ```python
 # default BEGAN
 ./scripts/run_experiments.sh project-name InpaintingIrregular 0 -1
@@ -26,4 +33,6 @@ DCGAN - https://github.com/Natsu6767/DCGAN-PyTorch
 BEGAN - https://github.com/zhusiling/BEGAN/tree/master/trained_models/128_tanh/models
 
 BigGAN - https://github.com/huggingface/pytorch-pretrained-BigGAN
+
+ImageNet1000(mini) - https://www.kaggle.com/ifigotin/imagenetmini-1000  (used for validation set. see validation-list.txt for the list of images used).
 

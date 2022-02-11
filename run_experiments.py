@@ -77,7 +77,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
     
     f_args = forward_models[args.forward_model]
     
-    logger = setup_logger(ROOT_LOGGER_NAME, get_logs_folder(args.base_dir, args.project_name))
+    logger = setup_logger(ROOT_LOGGER_NAME, get_logs_folder(args.base_dir, args.project_name, dict_to_str(metadata)))
     
     # try overriding mask name in f_args if forward model is IrregularInpainting
     if args.forward_model == 'InpaintingIrregular' and args.mask_name is not None:
@@ -259,7 +259,7 @@ def main():
     p.add_argument('--model', required=True, default='began', choices=['began','biggan','dcgan'])
     p.add_argument('--forward_model', required=True, choices=['InpaintingIrregular', 'InpaintingScatter', 'SuperResolution'])
     p.add_argument('--img_dir', default='./images/test2017')
-    p.add_argument('--base_dir', default='./logs')
+    p.add_argument('--base_dir', default='./output')
     p.add_argument('--img_list', required=True)
     p.add_argument('--first_cut', default=0, type=int)
     p.add_argument('--second_cut', default=-1, type=int)
