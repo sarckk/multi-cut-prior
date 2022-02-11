@@ -164,7 +164,7 @@ def _recover(x,
         y_masked_part = y_masked_part.clamp(0,1)
     else:
         y_masked_part = None
-    print('=======================')
+
     for j in trange(n_steps,
                     leave=False,
                     desc='Recovery',
@@ -179,12 +179,12 @@ def _recover(x,
             if uses_multicode:
                 F_l = x_hats * alpha[:, :, None, None] # num_codes x 128 x 128 x 128
                 if 'F_l_start' not in saved_params:
-                    print('==> Setting F_l_start once')
                     saved_params['F_l_start'] = F_l.detach().cpu().clone().numpy()
                 F_l_2 = F_l.sum(0, keepdim=True) / z_number
-                F_flattened = alpha.view(num_codes, -1) # nc x 128^3
-                cos_sim_matrix = sim_matrix(F_flattened, F_flattened) # shape (num_codes, num_codes)
-                cos_loss = cos_sim_matrix.mean()
+                if cos_weight > 0:
+                    F_flattened = alpha.view(num_codes, -1) # nc x 128^3
+                    cos_sim_matrix = sim_matrix(F_flattened, F_flattened) # shape (num_codes, num_codes)
+                    cos_loss = cos_sim_matrix.mean()
                 x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=-1, **kwargs)
                 
             if gen.rescale:
@@ -204,16 +204,18 @@ def _recover(x,
         
         optimizer_z.step(closure)
         
-        
+        cos_loss = 0.0
+
         with torch.no_grad():
             x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
             if uses_multicode:
                 F_l = x_hats * alpha[:, :, None, None]
                 saved_params['F_l'] = F_l.detach().cpu().clone().numpy()
                 F_l_2 = F_l.sum(0, keepdim=True) / z_number
-                F_flattened = alpha.view(num_codes, -1)
-                cos_sim_matrix = sim_matrix(F_flattened, F_flattened) # shape (num_codes, num_codes)
-                cos_loss = cos_sim_matrix.mean()              
+                if cos_weight > 0:
+                    F_flattened = alpha.view(num_codes, -1)
+                    cos_sim_matrix = sim_matrix(F_flattened, F_flattened) # shape (num_codes, num_codes)
+                    cos_loss = cos_sim_matrix.mean()              
                 x_hats = gen.forward(F_l_2, z2, n_cuts=second_cut, end=-1, **kwargs)
             
             if gen.rescale:
@@ -264,7 +266,6 @@ def _recover(x,
     if z2 is not None:
         saved_params['z2'] = z2.detach().cpu().clone().numpy()
     
-    print('=======================')
     return x_hats_clamp.squeeze(), y_observed.squeeze(), loss_dict, saved_params, is_valid_run
 
 def recover(x,
