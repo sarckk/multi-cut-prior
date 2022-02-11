@@ -112,6 +112,7 @@ def _recover(x,
              tv_weight=0.0,
              cos_weight=0.0,
              disable_wandb=False,
+             save_params=False,
              print_every=1,
              **kwargs):
     
@@ -125,22 +126,26 @@ def _recover(x,
     
     z1 = torch.nn.Parameter(get_z_vector((num_codes, *z1_dim), mode=mode, limit=limit, device=x.device))
     params_dict = {'z1': z1}
-    saved_params = dict()
-    saved_params['z1_start'] = z1.detach().cpu().clone().numpy()
+    
+    saved_params = None
+    
+    if save_params:
+        saved_params = dict()
+        saved_params['z1_start'] = z1.detach().cpu().clone().numpy()
     
     if uses_multicode:
         alpha = torch.nn.Parameter(get_z_vector((z_number, gen.input_shapes[second_cut][0][0]), mode=mode, limit=limit, device=x.device))
         params_dict['alpha'] = alpha
-        saved_params['alpha_start'] = alpha.detach().cpu().clone().numpy()
-        # num_codes x 128 
+        if save_params:
+            saved_params['alpha_start'] = alpha.detach().cpu().clone().numpy()
     else:
         alpha = None
 
     if len(z1_dim2) > 0:
         z1_2 = torch.nn.Parameter(get_z_vector((num_codes, *z1_dim2), mode=mode, limit=limit, device=x.device))
         params_dict['z1_2'] = z1_2
-        saved_params['z1_2_start'] = z1_2.detach().cpu().clone().numpy()
-
+        if save_params:
+            saved_params['z1_2_start'] = z1_2.detach().cpu().clone().numpy()
     else:
         z1_2 = None
     
@@ -150,7 +155,8 @@ def _recover(x,
         if len(z2_dim) > 0:
             z2 = torch.nn.Parameter(get_z_vector((1, *z2_dim), mode=mode, limit=limit, device=x.device))
             params_dict['z2'] = z2
-            saved_params['z2_start'] = z2.detach().cpu().clone().numpy()
+            if save_params:
+                saved_params['z2_start'] = z2.detach().cpu().clone().numpy()
 
     optimizer_z, scheduler_z, save_img_every = get_opt(optimizer_type, params_dict, z_lr)
 
@@ -178,7 +184,7 @@ def _recover(x,
                                  
             if uses_multicode:
                 F_l = x_hats * alpha[:, :, None, None] # num_codes x 128 x 128 x 128
-                if 'F_l_start' not in saved_params:
+                if save_params and 'F_l_start' not in saved_params:
                     saved_params['F_l_start'] = F_l.detach().cpu().clone().numpy()
                 F_l_2 = F_l.sum(0, keepdim=True) / z_number
                 if cos_weight > 0:
@@ -210,7 +216,8 @@ def _recover(x,
             x_hats = gen.forward(z1, z1_2, n_cuts=first_cut, end=second_cut, **kwargs)
             if uses_multicode:
                 F_l = x_hats * alpha[:, :, None, None]
-                saved_params['F_l'] = F_l.detach().cpu().clone().numpy()
+                if save_params:
+                    saved_params['F_l'] = F_l.detach().cpu().clone().numpy()
                 F_l_2 = F_l.sum(0, keepdim=True) / z_number
                 if cos_weight > 0:
                     F_flattened = alpha.view(num_codes, -1)
@@ -258,13 +265,14 @@ def _recover(x,
         writer.add_image('Final', x_hats_clamp.squeeze(), restart_idx)
         
     # save copies of params
-    saved_params['z1'] = z1.detach().cpu().clone().numpy()
-    if alpha is not None:
-        saved_params['alpha']  = alpha.detach().cpu().clone().numpy()
-    if z1_2 is not None:
-        saved_params['z1_2']  = z1_2.detach().cpu().clone().numpy()
-    if z2 is not None:
-        saved_params['z2'] = z2.detach().cpu().clone().numpy()
+    if save_params:
+        saved_params['z1'] = z1.detach().cpu().clone().numpy()
+        if alpha is not None:
+            saved_params['alpha']  = alpha.detach().cpu().clone().numpy()
+        if z1_2 is not None:
+            saved_params['z1_2']  = z1_2.detach().cpu().clone().numpy()
+        if z2 is not None:
+            saved_params['z2'] = z2.detach().cpu().clone().numpy()
     
     return x_hats_clamp.squeeze(), y_observed.squeeze(), loss_dict, saved_params, is_valid_run
 
@@ -285,6 +293,7 @@ def recover(x,
             tv_weight=0.0,
             cos_weight=0.0,
             disable_wandb=False,
+            save_params=False,
             print_every=1,
             **kwargs):
     
@@ -322,6 +331,7 @@ def recover(x,
                               tv_weight=tv_weight,
                               cos_weight=cos_weight,
                               disable_wandb=disable_wandb,
+                              save_params=save_params,
                               print_every=print_every,
                               **kwargs)
         

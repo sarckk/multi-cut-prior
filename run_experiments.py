@@ -24,6 +24,8 @@ import lpips
 from skimage.metrics import structural_similarity as calc_ssim
 
 
+assert pickle.HIGHEST_PROTOCOL == 5, 'Script requires pickle to support protocol 5'
+
 DEVICE = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 
@@ -168,6 +170,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
             metadata['tv_weight'], 
             metadata['cos_weight'],
             args.disable_wandb, 
+            args.save_params,
             args.print_every
         )
         time_taken = time.time() - start
@@ -216,8 +219,13 @@ def restore(args, metadata, z_number, first_cut, second_cut):
 
         # Save recovered image and metadata
         torch.save(recovered_img, recovered_path) # results_folder/ recovered.pt
-        pickle.dump(metrics, open(results_folder / 'metrics.pkl', 'wb'))
-        pickle.dump(best_params, open(results_folder / 'best_params.pkl', 'wb'))
+        with open(results_folder / 'metrics.pkl', 'wb') as f:
+            pickle.dump(metrics, f, protocol=5)
+            
+        if args.save_params:
+            assert best_params is not None, 'best_params cannot be None if --save_params set'
+            with open(results_folder / 'params.pkl', 'wb') as f:
+                pickle.dump(best_params, f, protocol=5)
 
 
 def gan_images(args, metadata):
@@ -273,10 +281,11 @@ def main():
      
     # run-related 
     p.add_argument('--disable_wandb', help='Disable weights and biases logging', action='store_true')
+    p.add_argument('--save_params', action='store_true')
+    p.add_argument('--disable_tqdm', action='store_true')
     p.add_argument('--run_name', default=None)
     p.add_argument('--project_name', required=True)
     p.add_argument('--print_every', default=10, type=int)
-    p.add_argument('--disable_tqdm', action='store_true')
     p.add_argument('--overwrite', action='store_true', help='Set flag to overwrite pre-existing files')
 
     args = p.parse_args()
