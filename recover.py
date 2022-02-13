@@ -233,9 +233,6 @@ def _recover(x,
         
         loss_dict = pack_losses(forward_model, x_hats_clamp, x, y_observed, y_masked_part)
         
-        # if train mse loss is > 0.01, something probably went wrong... let's log this case
-        if loss_dict['TRAIN_MSE'] > 0.01: 
-            is_valid_run = False
         
         
         global_idx = restart_idx * n_steps + j + 1
@@ -274,6 +271,10 @@ def _recover(x,
         if z2 is not None:
             saved_params['z2'] = z2.detach().cpu().clone().numpy()
     
+	# if train mse loss is > 0.01, something probably went wrong... let's log this case
+	if loss_dict['TRAIN_MSE'] > 0.01:
+        is_valid_run = False
+
     return x_hats_clamp.squeeze(), y_observed.squeeze(), loss_dict, saved_params, is_valid_run
 
 def recover(x,
