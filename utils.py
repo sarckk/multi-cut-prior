@@ -16,9 +16,6 @@ from torchvision import transforms
 from model.dcgan import Generator as GeneratorDCGAN, Discriminator as DiscriminatorDCGAN
 from model.began import BEGAN_Decoder
 
-def print_torchvec(x):
-    return ','.join([f'{i:0.3f}' for i in x.tolist()])
-
 
 def dict_to_str(d, exclude=None):
     s = []
@@ -46,13 +43,6 @@ def str_to_dict(s):
     return d
 
 
-def weight_init(m):
-    if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
-        torch.nn.init.xavier_uniform_(m.weight.data)
-        if m.bias is not None:
-            torch.nn.init.zeros_(m.bias.data)
-
-
 def _gen_img(img):
     plt.figure(figsize=(16, 9))
     plt.imshow(img)
@@ -62,22 +52,6 @@ def _gen_img(img):
     plt.close()
     buf.seek(0)
     return buf
-
-
-def normalize(img):
-    return (img - img.min()) / (img.max() - img.min())
-
-
-def load_trained_net(net, ckpt_filename):
-    ckpt = torch.load(ckpt_filename, map_location='cpu')['model_state_dict']
-    fixed_ckpt = {}
-    for k, v in ckpt.items():
-        if k.startswith('module.'):
-            fixed_ckpt[k[7:]] = v
-        else:
-            fixed_ckpt[k] = v
-    net.load_state_dict(fixed_ckpt)
-    return net
 
 
 def load_target_image(img, target_size):
