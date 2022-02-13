@@ -16,7 +16,7 @@ from model.dcgan import Generator as dcgan_generator
 from recover import recover
 from settings import forward_models
 from utils import (dict_to_str, get_images_folder,
-                   get_results_folder, load_target_image, load_trained_net,
+                   get_results_folder, load_target_image,
                    psnr, psnr_from_mse, load_pretrained_dcgan_gen, load_pretrained_began_gen, ImgDataset,
                   setup_logger, get_logs_folder, ROOT_LOGGER_NAME)
 import wandb

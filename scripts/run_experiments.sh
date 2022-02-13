@@ -4,18 +4,21 @@ PROJECT_NAME=${1:-test123}
 FM=${2:-InpaintingIrregular}
 C1=${3:-0}
 C2=${4:--1}
+C3=${5:-0}
 
 python run_experiments.py \
 --project_name $PROJECT_NAME \
 --model began \
 --forward_model $FM \
---img_list image-list.txt \
+--img_list imgnet.txt \
+--base_dir ./todelete_logs \
 --first_cut $C1 \
 --second_cut $C2 \
 --z_number 20 \
 --overwrite \
 --n_steps 30 \
 --restarts 1 \
---z_lr 1 \
+--cos_weight $C3 \
 --disable_tqdm \
-${5:+--mask_name $5}
+--disable_wandb \
+${6:+--mask_name $6}
