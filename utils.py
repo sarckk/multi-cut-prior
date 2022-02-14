@@ -15,7 +15,7 @@ from scipy.stats import truncnorm
 from torchvision import transforms
 from model.dcgan import Generator as GeneratorDCGAN, Discriminator as DiscriminatorDCGAN
 from model.began import BEGAN_Decoder
-
+from functools import reduce
 
 def dict_to_str(d, exclude=None):
     s = []
@@ -23,7 +23,7 @@ def dict_to_str(d, exclude=None):
         if exclude is not None and k in exclude:
             continue
         s.append(f"{k}={v}")
-    return ".".join(s)
+    return "^".join(s)
 
 
 def str_to_dict(s):
@@ -133,104 +133,6 @@ def parse_images_folder(p):
 def get_results_folder(image_name, model, cuts, dataset, forward_model,
                        recovery_params, base_dir):
     return (Path(base_dir) / 'results' / model / dataset / image_name / str(forward_model) / recovery_params / f'cuts={cuts}' )
-
-
-def parse_results_folder(root='./final_runs/results'):
-    rows_list = []
-    p = Path(root)
-
-    def get_img_size(model_name):
-        d = {
-            'dcgan': '64',
-            'began': '128',
-            'vanilla_vae': '128',
-            'beta_vae': '128',
-            'biggan': '512',
-            'iagan_dcgan': '64',
-            'iagan_began': '128',
-            'iagan_vanilla_vae': '128',
-            'mgan_dcgan': '64',
-            'mgan_began': '128',
-            'mgan_vanilla_vae': '128',
-            'deep_decoder_64': '64',
-            'deep_decoder_128': '128',
-        }
-        for k, v in d.items():
-            if model_name.startswith(k):
-                return v
-        raise KeyError()
-
-    for model_path in p.iterdir():
-        model = model_path.name
-
-        image_size = get_img_size(model)
-        for n_cuts_path in model_path.iterdir():
-            n_cuts = int(n_cuts_path.name.split('=')[1])
-            for split_path in n_cuts_path.iterdir():
-                split = split_path.name
-                for image_name_path in split_path.iterdir():
-                    image_name = image_name_path.name
-                    for fm_path in image_name_path.iterdir():
-                        fm_name, fm_params = forward_model_from_str(
-                            fm_path.name)
-                        for params_path in fm_path.iterdir():
-                            if not os.path.exists(
-                                    params_path / 'metadata.pkl'):
-                                print('metadata.pkl not found for',
-                                      params_path)
-                                continue
-                            with open(params_path / 'metadata.pkl', 'rb') as f:
-                                metadata = pickle.load(f)
-                            if os.path.exists(params_path /
-                                              'psnr_clamped.pkl'):
-                                with open(params_path / 'psnr_clamped.pkl',
-                                          'rb') as f:
-                                    ps = pickle.load(f)
-                            else:
-                                recovered = torch.load(str(params_path /
-                                                           'recovered.pt'),
-                                                       map_location='cpu')
-                                orig_path = p.parent.joinpath(
-                                    'images', split, image_name, image_size,
-                                    'original.pt')
-                                orig = torch.load(str(orig_path),
-                                                  map_location='cpu')
-
-                                if recovered.dim() == 4:
-                                    recovered = recovered.squeeze()
-                                    torch.save(recovered,
-                                               params_path / 'recovered.pt')
-
-                                ps = psnr(orig, recovered.clamp(0, 1))
-
-                                with open(params_path / 'psnr_clamped.pkl',
-                                          'wb') as f:
-                                    pickle.dump(float(ps), f)
-
-                            current_row_dict = {}
-
-                            current_row_dict['model'] = model
-                            current_row_dict['n_cuts'] = n_cuts
-                            current_row_dict['split'] = split
-                            current_row_dict['image_name'] = image_name
-                            current_row_dict['fm'] = fm_name
-                            current_row_dict['fraction_kept'] = float(
-                                fm_params.get('fraction_kept', -1.))
-                            current_row_dict['scale_factor'] = float(
-                                fm_params.get('scale_factor', -1.))
-                            current_row_dict['n_measure'] = int(
-                                fm_params.get('n_measure', -1))
-                            current_row_dict['lasso_coeff'] = float(
-                                fm_params.get('lasso_coeff', -1.))
-                            current_row_dict.update(metadata)
-                            current_row_dict['psnr'] = float(ps)
-
-                            rows_list.append(current_row_dict)
-
-    df = pd.DataFrame(rows_list)
-    os.makedirs(p.parent / 'processed_results', exist_ok=True)
-    with open(p.parent / 'processed_results/df_results.pkl', 'wb') as f:
-        pickle.dump(df, f)
 
 
 def forward_model_from_str(s):
@@ -381,6 +283,37 @@ def get_logs_folder(base_dir, project_name, metadata_str):
 
 
 ROOT_LOGGER_NAME = 'restore_logger'
+
+
+def calc_num_params(first_cut:int, second_cut:int, z_number:int, model='began'):
+    if model == 'began':
+        gen = BEGAN_Decoder()
+    else:
+        assert False, 'Not implemented'
+    
+    num_params = 0
+    
+    z1_dim, z1_dim2 = gen.input_shapes[first_cut]
+    
+    num_params += reduce(lambda x,y: x*y, z1_dim) * z_number
+    
+    if len(z1_dim2) > 0:
+        num_params += reduce(lambda x,y: x*y, z1_dim2) * z_number
+    
+    if z_number > 1:
+        assert second_cut != -1
+        # uses multiple code
+        intermed_dim, z2_dim = gen.input_shapes[second_cut]
+        
+        # add the weights
+        num_params += z_number * intermed_dim[0] # num channels
+        
+        if len(z2_dim) > 0:
+            num_params += (z2_dim[0] * z2_dim[1] * z2_dim[2])
+    
+    return num_params
+
+
 ##
 
 
