@@ -276,8 +276,8 @@ def setup_logger(name, log_dest):
     logger.addHandler(sh)
     return logger
 
-def get_logs_folder(base_dir, project_name, metadata_str):
-    dir_path = Path(base_dir) / project_name 
+def get_logs_folder(base_dir, project_name, forward_model, metadata_str):
+    dir_path = Path(base_dir) / project_name / str(forward_model)
     os.makedirs(dir_path, exist_ok=True)
     return dir_path / f'{metadata_str}_logs.txt'
 

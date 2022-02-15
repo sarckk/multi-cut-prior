@@ -76,8 +76,15 @@ def restore(args, metadata, z_number, first_cut, second_cut):
     img_shape = (3, img_size, img_size)
     
     f_args = forward_models[args.forward_model]
+    forward_model_args = f_args.copy()
+    forward_model_args['img_shape'] = img_shape
+
+    if args.forward_model == 'InpaintingIrregular':
+        forward_model_args['mask_dir'] = args.mask_dir
+
+    forward_model = get_forward_model(args.forward_model, **forward_model_args)
     
-    logger = setup_logger(ROOT_LOGGER_NAME, get_logs_folder(args.base_dir, args.project_name, dict_to_str(metadata)))
+    logger = setup_logger(ROOT_LOGGER_NAME, get_logs_folder(args.base_dir, args.project_name, forward_model, dict_to_str(metadata)))
     
     # try overriding mask name in f_args if forward model is IrregularInpainting
     if args.forward_model == 'InpaintingIrregular' and args.mask_name is not None:
@@ -95,14 +102,6 @@ def restore(args, metadata, z_number, first_cut, second_cut):
         image = image.squeeze().to(DEVICE)  # remove batch dimension 
         img_name = img_name[0]
         img_basename, _ = os.path.splitext(img_name)
-        
-        forward_model_args = f_args.copy()
-        forward_model_args['img_shape'] = img_shape
-
-        if args.forward_model == 'InpaintingIrregular':
-            forward_model_args['mask_dir'] = args.mask_dir
-            
-        forward_model = get_forward_model(args.forward_model, **forward_model_args)
 
         metadata['img'] = img_basename
         metadata_str = dict_to_str(metadata, exclude=['img', 'cut'])
