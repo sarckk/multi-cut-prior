@@ -23,7 +23,7 @@ def dict_to_str(d, exclude=None):
         if exclude is not None and k in exclude:
             continue
         s.append(f"{k}={v}")
-    return "^".join(s)
+    return ".".join(s)
 
 
 def str_to_dict(s):
