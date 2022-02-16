@@ -76,22 +76,21 @@ def restore(args, metadata, z_number, first_cut, second_cut):
     img_shape = (3, img_size, img_size)
     
     f_args = forward_models[args.forward_model]
+
+    # try overriding mask name in f_args if forward model is IrregularInpainting
+    if args.forward_model == 'InpaintingIrregular' and args.mask_name is not None:
+        assert 'mask_name' in f_args.keys()
+        print(f'===> Overriding mask_name to {args.mask_name}')
+        f_args['mask_name'] = args.mask_name 
+
     forward_model_args = f_args.copy()
     forward_model_args['img_shape'] = img_shape
-
     if args.forward_model == 'InpaintingIrregular':
         forward_model_args['mask_dir'] = args.mask_dir
 
     forward_model = get_forward_model(args.forward_model, **forward_model_args)
     
     logger = setup_logger(ROOT_LOGGER_NAME, get_logs_folder(args.base_dir, args.project_name, forward_model, dict_to_str(metadata)))
-    
-    # try overriding mask name in f_args if forward model is IrregularInpainting
-    if args.forward_model == 'InpaintingIrregular' and args.mask_name is not None:
-        assert 'mask_name' in f_args.keys()
-        print(f'===> Overriding mask_name to {args.mask_name}')
-        f_args['mask_name'] = args.mask_name 
-        
     
     img_dataset = ImgDataset(args.img_dir, args.img_list, img_size)
     img_dataloader = DataLoader(img_dataset, batch_size=1, shuffle=False)
