@@ -256,7 +256,7 @@ def main():
     
     # core
     p.add_argument('--model', required=True, default='began', choices=['began','biggan','dcgan'])
-    p.add_argument('--forward_model', required=True, choices=['InpaintingIrregular', 'InpaintingScatter', 'SuperResolution'])
+    p.add_argument('--forward_model', required=True, choices=['InpaintingIrregular', 'InpaintingScatter', 'SuperResolution','Denoising'])
     p.add_argument('--img_dir', default='./images/test2017')
     p.add_argument('--base_dir', default='./output')
     p.add_argument('--img_list', required=True)

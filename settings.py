@@ -13,6 +13,9 @@
 #         'mask_name': '04244.png'
 
 forward_models = {
+    'Denoising': {
+      'sigma': 0.2  
+    },
     'InpaintingIrregular': {
         'mask_name': '04244.png'
     }, 

@@ -110,53 +110,18 @@ class InpaintingScatter(ForwardModel):
 
 
 # New code
-def rand_rect_mask(img_shape, mask_shape, center_mask=True, device=None): 
-    """
-    For image of shape CHW, returns random boolean
-    mask of the same shape with random rectangular mask removed
-    """
-    mask = torch.ones(img_shape)
-    if device:
-        mask = mask.to(device)
+class Denoising(ForwardModel):
+    inverse = False
 
-    img_h, img_w = img_shape[1], img_shape[2]
-    mask_h, mask_w = mask_shape
-
-#     y0 = np.random.randint(img_h - mask_h + 1)
-#     x0 = np.random.randint(img_w - mask_w + 1) 
-    y0 = img_h // 2
-    x0 = img_w // 2
-    
-    if center_mask:
-        mask[:, y0 - mask_h//2 : y0 + mask_h//2, x0 - mask_w//2 : x0 + mask_w//2] = 0
-    else:
-        mask[:, y0: y0 + mask_h, x0: x0 + mask_w] = 0
-    
-    return mask
-
-class InpaintingSquare(ForwardModel):
-    """
-    Mask rectangular pixels
-    """
-    inverse = True
-
-    def __init__(self, img_shape, mask_size, center = True, device=DEFAULT_DEVICE):
-        """
-        img_shape - 3 x H x W
-        fraction_kept - number in [0, 1], what portion of pixels to retain
-        """
-        self.mask_size = mask_size
-        self.center = center
-        self.A = rand_rect_mask(img_shape, mask_shape=(mask_size,mask_size), center_mask=center).to(device)
-
+    def __init__(self, img_shape, sigma, device=DEFAULT_DEVICE):
+        self.sigma = sigma
+        self.noise = torch.normal(mean=0, std=sigma, size=img_shape).to(device)
+        
     def __call__(self, img):
-        return self.A[None, ...] * img
-    
-    def inverse(self, img):
-        return (1.0 - self.A[None, ...]) * img
+        return torch.clamp((img + self.noise), min=0, max=1)
 
     def __str__(self):
-        return f'InpaintingSquare.mask_size={self.mask_size}.center={self.center}'
+        return f'Denoising.sigma={self.sigma}'
 
     
 class InpaintingIrregular(ForwardModel):
