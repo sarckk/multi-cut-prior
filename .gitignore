@@ -1,10 +1,6 @@
 # Training checkpoints, tensorboard_logs
 checkpoints
 tensorboard_logs
-dcgan_checkpoints
-dcgan_tensorboard_logs
-vae_checkpoints
-vae_tensorboard_logs
 
 # IDE
 *ipynb_checkpoints

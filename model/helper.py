@@ -1,5 +1,9 @@
 import torch.nn as nn
 
+"""
+Functions in this file were originally from https://github.com/nik-sm/generator-surgery
+"""
+
 class ConvBlock(nn.Module):
     """
     All convs are created with:
@@ -17,7 +21,6 @@ class ConvBlock(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-
 
 
 class View(nn.Module):

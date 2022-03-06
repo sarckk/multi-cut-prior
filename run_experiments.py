@@ -1,3 +1,7 @@
+'''
+This file is modified version of https://github.com/nik-sm/generator-surgery/blob/master/run_experiments.py 
+'''
+
 import argparse
 import os
 import pickle
@@ -11,14 +15,12 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchvision.utils import make_grid
 from forward_model import get_forward_model
-from model.biggan import BigGanSkip
-from model.dcgan import Generator as dcgan_generator
 from recover import recover
 from settings import forward_models
 from utils import (dict_to_str, get_images_folder,
                    get_results_folder, load_target_image,
-                   psnr, psnr_from_mse, load_pretrained_dcgan_gen, load_pretrained_began_gen, ImgDataset,
-                  setup_logger, get_logs_folder, ROOT_LOGGER_NAME)
+                   psnr, psnr_from_mse, load_pretrained_began_gen, ImgListDs)
+
 import wandb
 import lpips
 from skimage.metrics import structural_similarity as calc_ssim
@@ -35,14 +37,6 @@ def reset_gen(model):
         gen = load_pretrained_began_gen(state_dict)
         gen = gen.eval().to(DEVICE)
         img_size = 128
-    elif model == 'dcgan':
-        state_dict = torch.load('./trained_model/dcgan.pth', map_location=DEVICE)
-        gen = load_pretrained_dcgan_gen(state_dict)
-        gen = gen.eval().to(DEVICE)
-        img_size = 64
-    elif model == 'biggan':
-        gen = BigGanSkip().to(DEVICE)
-        img_size = 128
     else:
         raise NotImplementedError()
     return gen, img_size
@@ -50,7 +44,7 @@ def reset_gen(model):
 
 
 def verify_args(args):
-    if args.model not in ['began', 'biggan', 'dcgan']:
+    if args.model not in ['began']:
         raise NotImplementedError()
     
     if args.project_name is None and not args.disable_wandb:
@@ -90,9 +84,7 @@ def restore(args, metadata, z_number, first_cut, second_cut):
 
     forward_model = get_forward_model(args.forward_model, **forward_model_args)
     
-    logger = setup_logger(ROOT_LOGGER_NAME, get_logs_folder(args.base_dir, args.project_name, forward_model, dict_to_str(metadata)))
-    
-    img_dataset = ImgDataset(args.img_dir, args.img_list, img_size)
+    img_dataset = ImgListDs(args.img_dir, args.img_list, img_size)
     img_dataloader = DataLoader(img_dataset, batch_size=1, shuffle=False)
  
     cuts_combination = str([first_cut, second_cut])
@@ -166,20 +158,11 @@ def restore(args, metadata, z_number, first_cut, second_cut):
             logdir, 
             args.disable_tqdm, 
             metadata['tv_weight'], 
-            metadata['cos_weight'],
             args.disable_wandb, 
             args.save_params,
             args.print_every
         )
         time_taken = time.time() - start
-        
-        # this prints to stdout
-        logger.info(f'[{idx+1}/{len(img_dataloader)}]  Img: {img_basename}  Time taken: {time_taken:.3f}')
-        
-        # this saves to log destination file
-        if not is_valid:
-            logger.warning(f'[{idx+1}/{len(img_dataloader)}]  Run: {current_run_name}  Potentially invalid run.')
-        
         
         p = loss_dict['ORIG_PSNR']
         ssim = calc_ssim(recovered_img.cpu().numpy(), image.cpu().numpy(), channel_axis=0, data_range=1.0)
@@ -254,7 +237,7 @@ def main():
     p = argparse.ArgumentParser()
     
     # core
-    p.add_argument('--model', required=True, default='began', choices=['began','biggan','dcgan'])
+    p.add_argument('--model', required=True, default='began', choices=['began'])
     p.add_argument('--forward_model', required=True, choices=['InpaintingIrregular', 'InpaintingScatter', 'SuperResolution','Denoising'])
     p.add_argument('--img_dir', default='./images/test2017')
     p.add_argument('--base_dir', default='./output')
@@ -269,9 +252,8 @@ def main():
     
     # training
     p.add_argument('--tv_weight', type=float, default=1e-8)
-    p.add_argument('--cos_weight', type=float, default=0.0)
-    p.add_argument('--restarts', type=int, default=1)
-    p.add_argument('--n_steps', type=int, default=40)
+    p.add_argument('--restarts', type=int, default=3)
+    p.add_argument('--n_steps', type=int, default=30)
     p.add_argument('--z_lr', type=float, default=1.0)
     p.add_argument('--limit', default=1, type=int)
     p.add_argument('--optimizer', default='lbfgs', choices=['lbfgs', 'adam', 'adamW', 'sgd'])
@@ -299,7 +281,6 @@ def main():
 
     metadata = dict()
     metadata['tv_weight'] = args.tv_weight
-    metadata['cos_weight'] = args.cos_weight
     metadata['optimizer'] = args.optimizer
     metadata['n_steps'] = args.n_steps
     metadata['z_lr'] = args.z_lr

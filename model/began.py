@@ -1,8 +1,11 @@
+'''
+This is an adapted version of https://github.com/nik-sm/generator-surgery/blob/master/model/began.py
+using the BEGAN architecture used in https://github.com/zhusiling/BEGAN and to accommodate the MGP method which allows 2 cuts
+'''
 import torch
 import torch.nn as nn
 
 from .helper import View, ConvBlock
-
     
 class BEGAN_Decoder(nn.Module):
     rescale=False
@@ -101,6 +104,7 @@ class BEGAN_Decoder(nn.Module):
             print(x1.shape, () if n_cuts <= 1 else x2.shape, res.shape[1:])
             
 
+    # https://github.com/nik-sm/generator-surgery/blob/master/model/dcgan.py#L54
     def forward(self, z, z2=None, n_cuts=0, end=-1):
         if end == -1:
             end = len(self.layers)
