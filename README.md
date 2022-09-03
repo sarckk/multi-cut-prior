@@ -1,5 +1,7 @@
 # Multi-cut GAN Prior
 
+<img width="652" alt="Screenshot 2022-09-03 at 20 23 43" src="https://user-images.githubusercontent.com/48474650/188285166-cd3b5301-4967-46e3-bae9-fd622d38543d.png">
+
 ## Quick start
 First install all dependencies with `pip`:
 
