@@ -1,6 +1,8 @@
 # Multi-cut GAN Prior
 
-<img width="652" alt="Screenshot 2022-09-03 at 20 23 43" src="https://user-images.githubusercontent.com/48474650/188285166-cd3b5301-4967-46e3-bae9-fd622d38543d.png">
+<img width="1335" alt="Screenshot 2022-09-03 at 20 26 37" src="https://user-images.githubusercontent.com/48474650/188285225-c430086e-7f7d-4bf0-af22-2b763b9b42cf.png">
+
+> With increased accessibility to pre-trained GAN models, many techniques have been proposed to exploit the rich landscape of information captured by GANs for image restoration. However, it still remains a challenging task due to the potential mismatch between the distribution of training data of the GAN and the target data. Some works propose fine-tuning the GAN weights, but this is costly and may not always be viable. Other methods, such as Generator Surgery (GS) and Multi-code GAN Prior (mGANPrior) iteratively update the input to the GAN at various layers while leaving the GAN weights intact. However, we find that these methods yield poor results on more challenging image restoration tasks such as inpainting and super-resolution when there is a large mismatch in data distribution. In this work, we present Multi-cut GAN Prior (MGP), a technique that combines GS and mGANPrior into a generalized formulation, and evaluate it in this data-mismatch regime. Our results show that MGP outperforms both GS and mGANPrior for various image restoration tasks such as denoising, inpainting and super-resolution.
 
 ## Quick start
 First install all dependencies with `pip`:
